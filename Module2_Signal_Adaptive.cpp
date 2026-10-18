@@ -1,5 +1,4 @@
-// STUDENT 2 — SIGNAL CONTROL & ADAPTIVE TIMING
-// Signal state machine, phase controller, density-based phase selection, green limits.
+// STUDENT 3: Traffic signal states and phase controller
 #include "Common.h"
 
 // ============================================================
@@ -38,26 +37,36 @@ public:
         stateChangeCount = 0;
     }
 
-    SignalState getState() const { return currentState; }
-    const char* getName() const { return signalName; }
-    const char* getStateText() const { return signalStateText(currentState); }
-    int getStateChangeCount() const { return stateChangeCount; }
+    SignalState getState() const {
+        return currentState;
+    }
 
-    // Strict cycle: RED -> GREEN -> YELLOW -> RED.
+    const char* getName() const {
+        return signalName;
+    }
+
+    const char* getStateText() const {
+        return signalStateText(currentState);
+    }
+
+    int getStateChangeCount() const {
+        return stateChangeCount;
+    }
+
     bool changeState(SignalState newState) {
-        if (newState == currentState) {
+        if (newState == currentState)
             return true;
-        }
 
         bool valid =
-            (currentState == RED    && newState == GREEN)  ||
-            (currentState == GREEN  && newState == YELLOW) ||
+            (currentState == RED && newState == GREEN) ||
+            (currentState == GREEN && newState == YELLOW) ||
             (currentState == YELLOW && newState == RED);
 
         if (!valid) {
             cout << "Invalid transition for " << signalName << ": "
                  << signalStateText(currentState) << " -> "
-                 << signalStateText(newState) << " is not allowed.\n";
+                 << signalStateText(newState)
+                 << " is not allowed.\n";
             return false;
         }
 
@@ -67,15 +76,106 @@ public:
     }
 };
 
+// ============================================================
+// SINGLY LINKED LIST: SIGNAL EVENT LOG
+// ============================================================
+
+class SignalEventLog {
+private:
+    struct Node {
+        int eventNumber;
+        char signalName[30];
+        SignalState oldState;
+        SignalState newState;
+        Node* next;
+
+        Node(int number, const char* name,
+             SignalState oldValue, SignalState newValue) {
+            eventNumber = number;
+
+            strncpy(signalName, name, sizeof(signalName) - 1);
+            signalName[sizeof(signalName) - 1] = '\0';
+
+            oldState = oldValue;
+            newState = newValue;
+            next = NULL;
+        }
+    };
+
+    Node* head;
+    Node* tail;
+    int eventCount;
+
+public:
+    SignalEventLog() : head(NULL), tail(NULL), eventCount(0) {}
+
+    SignalEventLog(const SignalEventLog&) = delete;
+    SignalEventLog& operator=(const SignalEventLog&) = delete;
+
+    ~SignalEventLog() {
+        Node* current = head;
+
+        while (current != NULL) {
+            Node* nextNode = current->next;
+            delete current;
+            current = nextNode;
+        }
+    }
+
+    void addEvent(const char* name,
+                  SignalState oldState,
+                  SignalState newState) {
+        Node* newNode =
+            new Node(eventCount + 1, name, oldState, newState);
+
+        if (head == NULL) {
+            head = newNode;
+            tail = newNode;
+        } else {
+            tail->next = newNode;
+            tail = newNode;
+        }
+
+        eventCount++;
+    }
+
+    int size() const {
+        return eventCount;
+    }
+
+    void display() const {
+        cout << "\nSignal Event Log (linked list):\n";
+
+        if (head == NULL) {
+            cout << "No signal transitions recorded.\n";
+            return;
+        }
+
+        const Node* current = head;
+
+        while (current != NULL) {
+            cout << "  #" << current->eventNumber << "  "
+                 << current->signalName << ": "
+                 << signalStateText(current->oldState) << " -> "
+                 << signalStateText(current->newState) << '\n';
+
+            current = current->next;
+        }
+    }
+};
 
 // ============================================================
-// MODULE 2: PHASE CONTROLLER
+// TRAFFIC PHASE
 // ============================================================
 
 enum TrafficPhase {
     NORTH_SOUTH_PHASE,
     EAST_WEST_PHASE
 };
+
+// ============================================================
+// PHASE CONTROLLER
+// ============================================================
 
 class PhaseController : public Reportable {
 private:
@@ -86,14 +186,27 @@ private:
     int phaseSwitches;
     int safetyViolations;
 
-    void moveToRed(TrafficSignal& signal) {
-        if (signal.getState() == GREEN) {
-            signal.changeState(YELLOW);
-        }
+    SignalEventLog eventLog;
 
-        if (signal.getState() == YELLOW) {
-            signal.changeState(RED);
+    void changeAndLog(TrafficSignal& signal,
+                      SignalState newState) {
+        SignalState oldState = signal.getState();
+
+        if (oldState == newState)
+            return;
+
+        if (signal.changeState(newState)) {
+            eventLog.addEvent(signal.getName(),
+                              oldState, newState);
         }
+    }
+
+    void moveToRed(TrafficSignal& signal) {
+        if (signal.getState() == GREEN)
+            changeAndLog(signal, YELLOW);
+
+        if (signal.getState() == YELLOW)
+            changeAndLog(signal, RED);
     }
 
 public:
@@ -105,7 +218,6 @@ public:
         safetyViolations = 0;
     }
 
-    // Time lost between two green phases.
     static int transitionTime() {
         return YELLOW_TIME + ALL_RED_TIME;
     }
@@ -116,24 +228,20 @@ public:
     }
 
     void activatePhase(TrafficPhase phase) {
-        // Never allow one direction green while the other is green.
         allRed();
 
-        if (phase != activePhase) {
+        if (phase != activePhase)
             phaseSwitches++;
-        }
 
         activePhase = phase;
 
-        if (phase == NORTH_SOUTH_PHASE) {
-            northSouthSignal.changeState(GREEN);
-        } else {
-            eastWestSignal.changeState(GREEN);
-        }
+        if (phase == NORTH_SOUTH_PHASE)
+            changeAndLog(northSouthSignal, GREEN);
+        else
+            changeAndLog(eastWestSignal, GREEN);
 
-        if (!isSafe()) {
+        if (!isSafe())
             safetyViolations++;
-        }
     }
 
     void finishPhase() {
@@ -145,22 +253,35 @@ public:
                  eastWestSignal.getState() == GREEN);
     }
 
-    int getPhaseSwitches() const { return phaseSwitches; }
+    int getPhaseSwitches() const {
+        return phaseSwitches;
+    }
 
     void displayStatusLine() const {
-        cout << "Signals -> North-South: " << northSouthSignal.getStateText()
-             << " | East-West: " << eastWestSignal.getStateText() << '\n';
+        cout << "Signals -> North-South: "
+             << northSouthSignal.getStateText()
+             << " | East-West: "
+             << eastWestSignal.getStateText() << '\n';
     }
 
     void displayReport() const {
         displayStatusLine();
+
         cout << "North-South state changes: "
              << northSouthSignal.getStateChangeCount() << '\n';
+
         cout << "East-West state changes: "
              << eastWestSignal.getStateChangeCount() << '\n';
+
         cout << "Phase switches: " << phaseSwitches << '\n';
+
         cout << "Safety violations (both green): "
              << safetyViolations << '\n';
+
+        cout << "Recorded signal events: "
+             << eventLog.size() << '\n';
+
+        eventLog.display();
     }
 
     const char* moduleName() const {
@@ -168,94 +289,70 @@ public:
     }
 };
 
-// PENDING (Phase III): signal event log (linked list), emergency override
-// mode that holds every signal red.
-
 // ============================================================
-// MODULE 3: ADAPTIVE TRAFFIC OPTIMISATION
+// ADAPTIVE TRAFFIC TIMING
 // ============================================================
 
 class TrafficAnalyzer : public Reportable {
 private:
-    int minimumGreenTime;
-    int maximumGreenTime;
     int secondsPerVehicle;
+    int minGreenTime;
+    int maxGreenTime;
 
 public:
     TrafficAnalyzer() {
-        minimumGreenTime = 10;
-        maximumGreenTime = 40;
-        secondsPerVehicle = SECONDS_PER_VEHICLE;
+        secondsPerVehicle = 2;
+        minGreenTime = 10;
+        maxGreenTime = 60;
     }
 
-    void setGreenLimits(int minimum, int maximum) {
-        if (minimum < 1 || maximum < minimum) {
-            cout << "Invalid green-time limits.\n";
-            return;
+    int getSecondsPerVehicle() const {
+        return secondsPerVehicle;
+    }
+
+    void setGreenLimits(int minTime, int maxTime) {
+        if (minTime > 0 && maxTime >= minTime) {
+            minGreenTime = minTime;
+            maxGreenTime = maxTime;
         }
-
-        minimumGreenTime = minimum;
-        maximumGreenTime = maximum;
     }
 
-    int getSecondsPerVehicle() const { return secondsPerVehicle; }
-
-    // Green time grows with the queue but stays between the limits.
     int calculateGreenTime(int vehicleCount) const {
-        int calculatedTime = vehicleCount * secondsPerVehicle;
+        if (vehicleCount < 0)
+            vehicleCount = 0;
 
-        if (calculatedTime < minimumGreenTime) {
-            calculatedTime = minimumGreenTime;
-        }
+        int greenTime = vehicleCount * secondsPerVehicle;
 
-        if (calculatedTime > maximumGreenTime) {
-            calculatedTime = maximumGreenTime;
-        }
+        if (greenTime < minGreenTime)
+            greenTime = minGreenTime;
 
-        return calculatedTime;
+        if (greenTime > maxGreenTime)
+            greenTime = maxGreenTime;
+
+        return greenTime;
     }
 
-    // The heavier direction goes first.
-    TrafficPhase choosePhase(int northSouthCount, int eastWestCount) const {
-        if (northSouthCount >= eastWestCount) {
+    TrafficPhase choosePhase(int northSouthCount,
+                             int eastWestCount) const {
+        if (northSouthCount >= eastWestCount)
             return NORTH_SOUTH_PHASE;
-        }
 
         return EAST_WEST_PHASE;
     }
 
-    void displayAnalysis(int north, int south, int east, int west) const {
-        int ns = north + south;
-        int ew = east + west;
-
-        printHeader("ADAPTIVE TRAFFIC ANALYSIS");
-
-        cout << "North-South vehicles: " << ns << '\n';
-        cout << "East-West vehicles:   " << ew << '\n';
-        cout << "North-South green time: "
-             << calculateGreenTime(ns) << " seconds\n";
-        cout << "East-West green time:   "
-             << calculateGreenTime(ew) << " seconds\n";
-
-        if (ns > ew) {
-            cout << "Higher traffic density: North-South\n";
-        } else if (ew > ns) {
-            cout << "Higher traffic density: East-West\n";
-        } else {
-            cout << "Traffic density is equal in both directions.\n";
-        }
-    }
-
     void displayReport() const {
-        cout << "Green time limits: " << minimumGreenTime
-             << "s to " << maximumGreenTime << "s\n";
-        cout << "Seconds per vehicle: " << secondsPerVehicle << '\n';
+        cout << "\nAdaptive Timing Report\n";
+        cout << "Seconds per vehicle: "
+             << secondsPerVehicle << '\n';
+        cout << "Minimum green time: "
+             << minGreenTime << " seconds\n";
+        cout << "Maximum green time: "
+             << maxGreenTime << " seconds\n";
     }
 
     const char* moduleName() const {
-        return "Module 3 - Adaptive Optimisation";
+        return "Module 4 - Adaptive Traffic Timing";
     }
 };
 
-// PENDING (Phase III): congestion levels, starvation guard, fixed-time vs
-// adaptive comparison.
+// End of Module 2
