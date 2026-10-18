@@ -20,9 +20,9 @@ template <typename T>
 void swapValues(T& a, T& b) { T temp = a; a = b; b = temp; }
 
 void printHeader(const char* title) {
-    cout << "\\n============================================================\\n";
+    cout << "\n============================================================\n";
     cout << "  " << title << '\n';
-    cout << "============================================================\\n";
+    cout << "============================================================\n";
 }
 
 int readInt(const char* prompt, int minValue, int maxValue) {

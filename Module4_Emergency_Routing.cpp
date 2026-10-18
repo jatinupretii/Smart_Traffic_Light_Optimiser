@@ -1,4 +1,5 @@
-// STUDENT 4 — EMERGENCY PRIORITY & ROUTING
+
+ // STUDENT 4 — EMERGENCY PRIORITY & ROUTING
 // Max-heap emergency queue and graph/BFS green corridor.
 #include "Common.h"
 
@@ -7,7 +8,8 @@
 // MANUAL BINARY MAX HEAP
 // ============================================================
 
-class EmergencyManager : public Reportable {
+class EmergencyManager : public Reportable
+{
 private:
     Vehicle heap[MAX_EMERGENCIES];
     int heapSize;
@@ -15,23 +17,29 @@ private:
     int totalExtracted;
 
     // Higher priority first; then earlier arrival; then smaller ID.
-    bool hasHigherPriority(const Vehicle& a, const Vehicle& b) const {
-        if (a.getPriority() != b.getPriority()) {
+    bool hasHigherPriority(const Vehicle& a, const Vehicle& b) const
+    {
+        if (a.getPriority() != b.getPriority())
+        {
             return a.getPriority() > b.getPriority();
         }
 
-        if (a.getArrivalTime() != b.getArrivalTime()) {
+        if (a.getArrivalTime() != b.getArrivalTime())
+        {
             return a.getArrivalTime() < b.getArrivalTime();
         }
 
         return a.getId() < b.getId();
     }
 
-    void siftUp(int index) {
-        while (index > 0) {
+    void siftUp(int index)
+    {
+        while (index > 0)
+        {
             int parent = (index - 1) / 2;
 
-            if (!hasHigherPriority(heap[index], heap[parent])) {
+            if (!hasHigherPriority(heap[index], heap[parent]))
+            {
                 break;
             }
 
@@ -40,23 +48,26 @@ private:
         }
     }
 
-    void siftDown(int index) {
-        while (true) {
+    void siftDown(int index)
+    {
+        while (true)
+        {
             int leftChild = 2 * index + 1;
             int rightChild = 2 * index + 2;
             int highest = index;
 
-            if (leftChild < heapSize &&
-                hasHigherPriority(heap[leftChild], heap[highest])) {
+            if (leftChild < heapSize && hasHigherPriority(heap[leftChild], heap[highest]))
+            {
                 highest = leftChild;
             }
 
-            if (rightChild < heapSize &&
-                hasHigherPriority(heap[rightChild], heap[highest])) {
+            if (rightChild < heapSize && hasHigherPriority(heap[rightChild], heap[highest]))
+            {
                 highest = rightChild;
             }
 
-            if (highest == index) {
+            if (highest == index)
+            {
                 break;
             }
 
@@ -66,22 +77,33 @@ private:
     }
 
 public:
-    EmergencyManager() {
+    EmergencyManager()
+    {
         heapSize = 0;
         totalInserted = 0;
         totalExtracted = 0;
     }
 
-    bool isEmpty() const { return heapSize == 0; }
-    int getCount() const { return heapSize; }
+    bool isEmpty() const
+    {
+        return heapSize == 0;
+    }
 
-    bool insertEmergency(const Vehicle& vehicle) {
-        if (heapSize == MAX_EMERGENCIES) {
+    int getCount() const
+    {
+        return heapSize;
+    }
+
+    bool insertEmergency(const Vehicle& vehicle)
+    {
+        if (heapSize == MAX_EMERGENCIES)
+        {
             cout << "Emergency queue is full.\n";
             return false;
         }
 
-        if (!vehicle.isEmergency()) {
+        if (!vehicle.isEmergency())
+        {
             cout << "Rejected: not an emergency vehicle.\n";
             return false;
         }
@@ -94,15 +116,18 @@ public:
         return true;
     }
 
-    bool extractHighestPriority(Vehicle& vehicle) {
-        if (isEmpty()) {
+    bool extractHighestPriority(Vehicle& vehicle)
+    {
+        if (isEmpty())
+        {
             return false;
         }
 
         vehicle = heap[0];
         heapSize--;
 
-        if (heapSize > 0) {
+        if (heapSize > 0)
+        {
             heap[0] = heap[heapSize];
             siftDown(0);
         }
@@ -112,30 +137,33 @@ public:
     }
 
     // Raw heap array order (NOT fully sorted).
-    void displayPriorityQueue() const {
+    void displayPriorityQueue() const
+    {
         cout << "\nEmergency priority heap (array order):\n";
 
-        if (heapSize == 0) {
+        if (heapSize == 0)
+        {
             cout << "  No emergency vehicles waiting.\n";
             return;
         }
 
-        for (int i = 0; i < heapSize; i++) {
-            cout << "  [" << i << "] ID " << heap[i].getId()
-                 << " | " << Vehicle::typeName(heap[i].getType())
-                 << " | HIGHEST PRIORITY" << '\n';
+        for (int i = 0; i < heapSize; i++)
+        {
+            cout << "  [" << i << "] ID " << heap[i].getId() << " | " << Vehicle::typeName(heap[i].getType()) << " | HIGHEST PRIORITY" << '\n';
         }
 
         cout << "Note: heap-array order is not fully sorted.\n";
     }
 
-    void displayReport() const {
+    void displayReport() const
+    {
         cout << "Emergency vehicles waiting: " << heapSize << '\n';
         cout << "Total inserted: " << totalInserted << '\n';
         cout << "Total dispatched: " << totalExtracted << '\n';
     }
 
-    const char* moduleName() const {
+    const char* moduleName() const
+    {
         return "Module 4 - Emergency Priority";
     }
 };
@@ -143,26 +171,30 @@ public:
 // PENDING (Phase III): change priority of a queued vehicle, heap tree view,
 // non-destructive dispatch order.
 
-
 // ============================================================
 // MODULE 5: GREEN CORRIDOR
 // WEIGHTED GRAPH (ADJACENCY MATRIX) + BFS
 // ============================================================
 
-class GreenCorridor : public Reportable {
+class GreenCorridor : public Reportable
+{
 private:
     int distanceMap[MAX_INTERSECTIONS][MAX_INTERSECTIONS];   // 0 = no road
     bool blocked[MAX_INTERSECTIONS][MAX_INTERSECTIONS];
     const char* intersectionNames[MAX_INTERSECTIONS];
 
-    bool roadAvailable(int a, int b) const {
+    bool roadAvailable(int a, int b) const
+    {
         return distanceMap[a][b] > 0 && !blocked[a][b];
     }
 
 public:
-    GreenCorridor() {
-        for (int i = 0; i < MAX_INTERSECTIONS; i++) {
-            for (int j = 0; j < MAX_INTERSECTIONS; j++) {
+    GreenCorridor()
+    {
+        for (int i = 0; i < MAX_INTERSECTIONS; i++)
+        {
+            for (int j = 0; j < MAX_INTERSECTIONS; j++)
+            {
                 distanceMap[i][j] = 0;
                 blocked[i][j] = false;
             }
@@ -180,17 +212,20 @@ public:
         intersectionNames[9] = "Stadium Gate";
     }
 
-    bool validIntersection(int id) const {
+    bool validIntersection(int id) const
+    {
         return id >= 0 && id < MAX_INTERSECTIONS;
     }
 
-    const char* getName(int id) const {
+    const char* getName(int id) const
+    {
         return validIntersection(id) ? intersectionNames[id] : "Invalid";
     }
 
-    bool addRoad(int from, int to, int distance) {
-        if (!validIntersection(from) || !validIntersection(to) ||
-            from == to || distance <= 0) {
+    bool addRoad(int from, int to, int distance)
+    {
+        if (!validIntersection(from) || !validIntersection(to) || from == to || distance <= 0)
+        {
             return false;
         }
 
@@ -199,9 +234,10 @@ public:
         return true;
     }
 
-    bool blockRoad(int from, int to) {
-        if (!validIntersection(from) || !validIntersection(to) ||
-            distanceMap[from][to] == 0) {
+    bool blockRoad(int from, int to)
+    {
+        if (!validIntersection(from) || !validIntersection(to) || distanceMap[from][to] == 0)
+        {
             return false;
         }
 
@@ -210,7 +246,8 @@ public:
         return true;
     }
 
-    void setupDemoNetwork() {
+    void setupDemoNetwork()
+    {
         addRoad(0, 1, 4);
         addRoad(1, 2, 3);
         addRoad(2, 3, 5);
@@ -226,11 +263,12 @@ public:
     }
 
     // BFS: route with the FEWEST roads.
-    bool findShortestRoute(int source, int destination,
-                           int route[], int& routeLength) const {
+    bool findShortestRoute(int source, int destination, int route[], int& routeLength) const
+    {
         routeLength = 0;
 
-        if (!validIntersection(source) || !validIntersection(destination)) {
+        if (!validIntersection(source) || !validIntersection(destination))
+        {
             return false;
         }
 
@@ -240,22 +278,27 @@ public:
         int front = 0;
         int rear = 0;
 
-        for (int i = 0; i < MAX_INTERSECTIONS; i++) {
+        for (int i = 0; i < MAX_INTERSECTIONS; i++)
+        {
             parent[i] = -1;
         }
 
         visited[source] = 1;
         queue[rear++] = source;
 
-        while (front < rear) {
+        while (front < rear)
+        {
             int current = queue[front++];
 
-            if (current == destination) {
+            if (current == destination)
+            {
                 break;
             }
 
-            for (int next = 0; next < MAX_INTERSECTIONS; next++) {
-                if (roadAvailable(current, next) && !visited[next]) {
+            for (int next = 0; next < MAX_INTERSECTIONS; next++)
+            {
+                if (roadAvailable(current, next) && !visited[next])
+                {
                     visited[next] = 1;
                     parent[next] = current;
                     queue[rear++] = next;
@@ -263,7 +306,8 @@ public:
             }
         }
 
-        if (!visited[destination]) {
+        if (!visited[destination])
+        {
             return false;
         }
 
@@ -272,12 +316,14 @@ public:
         int length = 0;
         int current = destination;
 
-        while (current != -1 && length < MAX_INTERSECTIONS) {
+        while (current != -1 && length < MAX_INTERSECTIONS)
+        {
             reversePath[length++] = current;
             current = parent[current];
         }
 
-        for (int i = 0; i < length; i++) {
+        for (int i = 0; i < length; i++)
+        {
             route[i] = reversePath[length - 1 - i];
         }
 
@@ -285,53 +331,59 @@ public:
         return true;
     }
 
-    int pathDistance(const int route[], int length) const {
+    int pathDistance(const int route[], int length) const
+    {
         int total = 0;
 
-        for (int i = 0; i + 1 < length; i++) {
+        for (int i = 0; i + 1 < length; i++)
+        {
             total += distanceMap[route[i]][route[i + 1]];
         }
 
         return total;
     }
 
-    void displayRoute(int source, int destination) const {
+    void displayRoute(int source, int destination) const
+    {
         int route[MAX_INTERSECTIONS];
         int routeLength = 0;
 
         printHeader("GREEN CORRIDOR ROUTE");
 
-        if (!findShortestRoute(source, destination, route, routeLength)) {
+        if (!findShortestRoute(source, destination, route, routeLength))
+        {
             cout << "No available route between those intersections.\n";
             return;
         }
 
         cout << "Shortest route (fewest roads):\n  ";
 
-        for (int i = 0; i < routeLength; i++) {
+        for (int i = 0; i < routeLength; i++)
+        {
             cout << intersectionNames[route[i]] << "(" << route[i] << ")";
 
-            if (i < routeLength - 1) {
+            if (i < routeLength - 1)
+            {
                 cout << " -> ";
             }
         }
 
-        cout << "\n  Roads used: " << routeLength - 1
-             << " | Distance: " << pathDistance(route, routeLength)
-             << " units\n";
+        cout << "\n  Roads used: " << routeLength - 1 << " | Distance: " << pathDistance(route, routeLength) << " units\n";
     }
 
-    void displayNetwork() const {
+    void displayNetwork() const
+    {
         cout << "\nRoad network (neighbour:distance, X = blocked):\n";
 
-        for (int i = 0; i < MAX_INTERSECTIONS; i++) {
-            cout << "  " << i << " " << setw(16) << left
-                 << intersectionNames[i] << right << ": ";
+        for (int i = 0; i < MAX_INTERSECTIONS; i++)
+        {
+            cout << "  " << i << " " << setw(16) << left << intersectionNames[i] << right << ": ";
 
-            for (int j = 0; j < MAX_INTERSECTIONS; j++) {
-                if (distanceMap[i][j] > 0) {
-                    cout << j << ":" << distanceMap[i][j]
-                         << (blocked[i][j] ? "X" : "") << "  ";
+            for (int j = 0; j < MAX_INTERSECTIONS; j++)
+            {
+                if (distanceMap[i][j] > 0)
+                {
+                    cout << j << ":" << distanceMap[i][j] << (blocked[i][j] ? "X" : "") << "  ";
                 }
             }
 
@@ -339,16 +391,21 @@ public:
         }
     }
 
-    void displayReport() const {
+    void displayReport() const
+    {
         int roads = 0;
         int blockedRoads = 0;
 
-        for (int i = 0; i < MAX_INTERSECTIONS; i++) {
-            for (int j = i + 1; j < MAX_INTERSECTIONS; j++) {
-                if (distanceMap[i][j] > 0) {
+        for (int i = 0; i < MAX_INTERSECTIONS; i++)
+        {
+            for (int j = i + 1; j < MAX_INTERSECTIONS; j++)
+            {
+                if (distanceMap[i][j] > 0)
+                {
                     roads++;
 
-                    if (blocked[i][j]) {
+                    if (blocked[i][j])
+                    {
                         blockedRoads++;
                     }
                 }
@@ -359,7 +416,8 @@ public:
         cout << "Roads: " << roads << " (blocked: " << blockedRoads << ")\n";
     }
 
-    const char* moduleName() const {
+    const char* moduleName() const
+    {
         return "Module 5 - Green Corridor";
     }
 };

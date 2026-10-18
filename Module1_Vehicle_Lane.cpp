@@ -1,82 +1,87 @@
-// STUDENT 1 — VEHICLE & LANE QUEUES
-// Vehicle representation, priority, circular queue, enqueue/dequeue, lane status.
+
 #include "Common.h"
 
-// ============================================================
-// MODULE 1: VEHICLE MANAGEMENT
-// ============================================================
-
-enum VehicleType 
+enum VehicleType
 {
-    CAR,
-    BUS,
-    MOTORBIKE,
-    TRUCK,
-    EMERGENCY
+    UNKNOWN = -1,
+    CAR = 0,
+    BUS = 1,
+    MOTORBIKE = 2,
+    TRUCK = 3,
+    EMERGENCY = 4
 };
 
-class Vehicle 
+class Vehicle
 {
 private:
     int id;
     VehicleType type;
     int arrivalTime;
     int priority;
-
-    static int createdCount;   // static member: counts vehicles built
+    static int createdCount;
 
 public:
-    static bool isEmergencyType(VehicleType t) 
+    static bool isEmergencyType(VehicleType type)
     {
-        return t == EMERGENCY;
+        return type == EMERGENCY;
     }
 
-    // Phase II: all emergency vehicles share one highest priority.
-    static int defaultPriority(VehicleType t) 
+    static int defaultPriority(VehicleType type)
     {
-        return (t == EMERGENCY) ? 100 : 0;
-    }
-
-    static const char* typeName(VehicleType t) 
-    {
-        switch (t) 
+        if (type == EMERGENCY)
         {
-            case CAR:        return "Car";
-            case BUS:        return "Bus";
-            case MOTORBIKE:  return "Motorbike";
-            case TRUCK:      return "Truck";
-            case EMERGENCY:  return "Emergency Vehicle";
+            return 100;
         }
+
+        return 0;
+    }
+
+    static const char* typeName(VehicleType type)
+    {
+        switch (type)
+        {
+            case UNKNOWN: return "Unknown";
+            case CAR: return "Car";
+            case BUS: return "Bus";
+            case MOTORBIKE: return "Motorbike";
+            case TRUCK: return "Truck";
+            case EMERGENCY: return "Emergency Vehicle";
+        }
+
         return "Unknown";
     }
 
-    static int getCreatedCount() 
+    static int getCreatedCount()
     {
         return createdCount;
     }
 
-    Vehicle() 
+    Vehicle()
     {
         id = 0;
-        type = CAR;
+        type = UNKNOWN;
         arrivalTime = 0;
         priority = 0;
     }
 
-    Vehicle(int vehicleId, VehicleType vehicleType,
-            int arrival, int emergencyPriority = 0) 
+    Vehicle(int vehicleId, VehicleType type, int arrival, int emergencyPriority = 0)
     {
         id = vehicleId;
-        type = vehicleType;
+        this->type = type;
         arrivalTime = arrival;
 
-        if (isEmergencyType(type)) 
+        if (isEmergencyType(this->type))
         {
-            priority = (emergencyPriority > 0)
-                           ? emergencyPriority
-                           : defaultPriority(type);
-        } 
-        else 
+            if (emergencyPriority > 0)
+            {
+                priority = emergencyPriority;
+            }
+            else
+            {
+                priority = defaultPriority(this->type);
+            }
+        }
+        else
         {
             priority = 0;
         }
@@ -84,85 +89,118 @@ public:
         createdCount++;
     }
 
-    int getId() const { return id; }
-    VehicleType getType() const { return type; }
-    int getArrivalTime() const { return arrivalTime; }
-    int getPriority() const { return priority; }
-    bool isEmergency() const { return isEmergencyType(type); }
+    int getId() const
+    {
+        return id;
+    }
 
-    // Friend function: prints a vehicle with <<.
-    friend ostream& operator<<(ostream& out, const Vehicle& v);
+    VehicleType getType() const
+    {
+        return type;
+    }
+
+    int getArrivalTime() const
+    {
+        return arrivalTime;
+    }
+
+    int getPriority() const
+    {
+        return priority;
+    }
+
+    bool isEmergency() const
+    {
+        return isEmergencyType(type);
+    }
+
+    friend ostream& operator<<(ostream& out, const Vehicle& vehicle);
 };
 
 int Vehicle::createdCount = 0;
 
-ostream& operator<<(ostream& out, const Vehicle& v) 
+ostream& operator<<(ostream& out, const Vehicle& vehicle)
 {
-    out << Vehicle::typeName(v.type) << " #" << v.id
-        << " (arrived " << v.arrivalTime << "s)";
+    out << Vehicle::typeName(vehicle.type) << " " << vehicle.id << " (arrived " << vehicle.arrivalTime << "s";
 
-    if (v.isEmergency()) 
+    if (vehicle.isEmergency())
     {
-        out << " priority " << v.priority;
+        out << ", priority " << vehicle.priority;
     }
 
+    out << ")";
     return out;
 }
 
-// PENDING (Phase III): separate Ambulance / Fire Truck / Police Car types,
-// vehicle-specific priorities and destinations, random/live arrivals.
-
-// ============================================================
-// MODULE 1: LANE USING A CIRCULAR QUEUE
-// ============================================================
-
-class Lane : public Reportable 
+class Lane : public Reportable
 {
 private:
     Vehicle vehicles[LANE_CAPACITY];
-
     int frontIndex;
     int rearIndex;
     int vehicleCount;
-
     int totalArrived;
     int totalServed;
     int totalRejected;
-
+    int totalExtracted;
     char laneName[20];
 
-    void initCounters() {
+    void initCounters()
+    {
         frontIndex = 0;
         rearIndex = -1;
         vehicleCount = 0;
         totalArrived = 0;
         totalServed = 0;
         totalRejected = 0;
+        totalExtracted = 0;
     }
 
 public:
-    Lane() 
+    Lane()
     {
         initCounters();
         strcpy(laneName, "Unknown");
     }
 
-    Lane(const char* name) 
+    Lane(const char* name)
     {
         initCounters();
-        strncpy(laneName, name, sizeof(laneName) - 1);
-        laneName[sizeof(laneName) - 1] = '\0';
+
+        if (name == NULL)
+        {
+            strcpy(laneName, "Unknown");
+        }
+        else
+        {
+            strncpy(laneName, name, sizeof(laneName) - 1);
+            laneName[sizeof(laneName) - 1] = '\0';
+        }
     }
 
-    bool isEmpty() const { return vehicleCount == 0; }
-    bool isFull() const { return vehicleCount == LANE_CAPACITY; }
-    int getCount() const { return vehicleCount; }
-    const char* getName() const { return laneName; }
-
-    // ENQUEUE
-    bool addVehicle(const Vehicle& vehicle) 
+    bool isEmpty() const
     {
-        if (isFull()) 
+        return vehicleCount == 0;
+    }
+
+    bool isFull() const
+    {
+        return vehicleCount == LANE_CAPACITY;
+    }
+
+    int getCount() const
+    {
+        return vehicleCount;
+    }
+
+    const char* getName() const
+    {
+        return laneName;
+    }
+
+    bool addVehicle(const Vehicle& vehicle)
+    {
+        if (isFull())
         {
             totalRejected++;
             return false;
@@ -176,10 +214,9 @@ public:
         return true;
     }
 
-    // DEQUEUE
-    bool serveVehicle(Vehicle& servedVehicle) 
+    bool serveVehicle(Vehicle& servedVehicle)
     {
-        if (isEmpty()) 
+        if (isEmpty())
         {
             return false;
         }
@@ -189,13 +226,18 @@ public:
         vehicleCount--;
         totalServed++;
 
+        if (isEmpty())
+        {
+            frontIndex = 0;
+            rearIndex = -1;
+        }
+
         return true;
     }
 
-    // PEEK
-    bool peekVehicle(Vehicle& vehicle) const 
+    bool peekVehicle(Vehicle& vehicle) const
     {
-        if (isEmpty()) 
+        if (isEmpty())
         {
             return false;
         }
@@ -204,104 +246,98 @@ public:
         return true;
     }
 
-    // Takes ONE vehicle out of the middle of the queue (used when a siren
-    // is detected inside a normal queue). Later vehicles shift forward.
-    bool extractVehicleById(int vehicleId, Vehicle& removed) 
-{
+    bool extractVehicleById(int vehicleId, Vehicle& removedVehicle)
+    {
         int position = -1;
 
-        for (int i = 0; i < vehicleCount; i++) 
+        for (int i = 0; i < vehicleCount; i++)
         {
-            if (vehicles[(frontIndex + i) % LANE_CAPACITY].getId()
-                == vehicleId) 
+            int index = (frontIndex + i) % LANE_CAPACITY;
+
+            if (vehicles[index].getId() == vehicleId)
             {
                 position = i;
                 break;
             }
         }
 
-        if (position == -1) 
+        if (position == -1)
         {
             return false;
         }
 
-        removed = vehicles[(frontIndex + position) % LANE_CAPACITY];
+        int removeIndex = (frontIndex + position) % LANE_CAPACITY;
+        removedVehicle = vehicles[removeIndex];
 
-        for (int i = position; i < vehicleCount - 1; i++) 
+        for (int i = position; i < vehicleCount - 1; i++)
         {
-            vehicles[(frontIndex + i) % LANE_CAPACITY] =
-                vehicles[(frontIndex + i + 1) % LANE_CAPACITY];
+            int currentIndex = (frontIndex + i) % LANE_CAPACITY;
+            int nextIndex = (frontIndex + i + 1) % LANE_CAPACITY;
+            vehicles[currentIndex] = vehicles[nextIndex];
         }
 
-        rearIndex = (rearIndex - 1 + LANE_CAPACITY) % LANE_CAPACITY;
         vehicleCount--;
+        totalExtracted++;
+
+        if (isEmpty())
+        {
+            frontIndex = 0;
+            rearIndex = -1;
+        }
+        else
+        {
+            rearIndex = (rearIndex - 1 + LANE_CAPACITY) % LANE_CAPACITY;
+        }
+
         return true;
     }
 
-    void displayStatusBar() const 
+    void displayStatusBar() const
     {
         const int BAR_WIDTH = 20;
         int filled = vehicleCount * BAR_WIDTH / LANE_CAPACITY;
 
-        cout << left << setw(7) << laneName << right << " [";
+        cout << left << setw(7) << laneName << " [";
 
-        for (int i = 0; i < BAR_WIDTH; i++) 
+        for (int i = 0; i < BAR_WIDTH; i++)
         {
             cout << (i < filled ? '#' : '.');
         }
 
-        cout << "] " << setw(3) << vehicleCount
-             << "/" << LANE_CAPACITY << '\n';
+        cout << "] " << vehicleCount << "/" << LANE_CAPACITY << '\n';
     }
 
-    void displayQueue() const 
+    void displayQueue() const
     {
-        const int SHOW_LIMIT = 12;
+        cout << laneName << " queue: ";
 
-        cout << "\nLane: " << laneName << " | waiting: "
-             << vehicleCount << '\n';
-
-        if (isEmpty()) 
+        if (isEmpty())
         {
-            cout << "Queue is empty.\n";
+            cout << "Empty\n";
             return;
         }
 
-        cout << "Queue order: ";
-
-        int shown = vehicleCount < SHOW_LIMIT ? vehicleCount : SHOW_LIMIT;
-
-        for (int i = 0; i < shown; i++) 
+        for (int i = 0; i < vehicleCount; i++)
         {
-            cout << vehicles[(frontIndex + i) % LANE_CAPACITY].getId();
+            int index = (frontIndex + i) % LANE_CAPACITY;
+            cout << vehicles[index].getId();
 
-            if (i < shown - 1) 
+            if (i < vehicleCount - 1)
             {
                 cout << " -> ";
             }
         }
 
-        if (vehicleCount > SHOW_LIMIT) {
-            cout << " -> ... (" << vehicleCount - SHOW_LIMIT << " more)";
-        }
-
         cout << '\n';
     }
 
-    void displayReport() const 
+    void displayReport() const
     {
-        cout << left << setw(7) << laneName << right
-             << " waiting: " << setw(3) << vehicleCount
-             << " | arrived: " << setw(3) << totalArrived
-             << " | served: " << setw(3) << totalServed
-             << " | rejected: " << totalRejected << '\n';
+        cout << left << setw(7) << laneName << right << " waiting: " << setw(3) << vehicleCount << " | arrived: " << setw(3) << totalArrived << " | served: " << setw(3) << totalServed << " | extracted: " << setw(3) << totalExtracted << " | rejected: " << totalRejected << '\n';
     }
 
-    const char* moduleName() const 
+    const char* moduleName() const
     {
         return "Module 1 - Lane Management";
     }
 };
-
-//   Mode 2 - Random : a seeded generator acts as the sensor.
-// ============================================================

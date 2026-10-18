@@ -6,7 +6,8 @@
 // MAIN INTEGRATION CLASS - CONNECTS ALL SIX MODULES
 // ============================================================
 
-enum LaneIdentifier {
+enum LaneIdentifier
+{
     NORTH_LANE = 1,
     SOUTH_LANE = 2,
     EAST_LANE = 3,

@@ -1,41 +1,47 @@
-// STUDENT 3 — VEHICLE DETECTION & INPUT
-// Manual/random sensor simulation and emergency-position detection.
 #include "Common.h"
 
-bool readYesNo(const char* prompt) 
+bool readYesNo(const char* prompt)
 {
     char answer;
 
-    while (true) 
+    while (true)
     {
         cout << prompt << " (y/n): ";
 
-        if (cin >> answer) 
+        if (cin >> answer)
         {
-            if (answer == 'y' || answer == 'Y') return true;
-            if (answer == 'n' || answer == 'N') return false;
-        } 
-        else if (cin.eof()) 
+            if (answer == 'y' || answer == 'Y')
+            {
+                return true;
+            }
+
+            if (answer == 'n' || answer == 'N')
+            {
+                return false;
+            }
+        }
+        else if (cin.eof())
         {
             cout << "\nInput ended. Exiting program.\n";
             exit(0);
-        } 
-        else 
+        }
+        else
         {
             cin.clear();
             cin.ignore(numeric_limits<streamsize>::max(), '\n');
         }
+
         cout << "Please answer with y or n.\n";
     }
 }
 
-class VehicleDetector 
+class VehicleDetector
 {
 private:
     int mode;                  // 1 = manual, 2 = random
     unsigned long seed;
 
-    int nextInt(int low, int high) 
+    int nextInt(int low, int high)
     {
         seed = (seed * 1103515245UL + 12345UL) & 0x7fffffffUL;
         unsigned long range = static_cast<unsigned long>(high - low + 1);
@@ -45,13 +51,13 @@ private:
 public:
     static const int MAX_EMERGENCY_PER_LANE = 5;
 
-    VehicleDetector() 
+    VehicleDetector()
     {
         mode = 1;
         seed = 2026;
     }
 
-    void chooseMode() 
+    void chooseMode()
     {
         cout << "Detection mode:\n";
         cout << "  1 = Manual entry (operator types what the sensor reads)\n";
@@ -61,9 +67,9 @@ public:
     }
 
     // Sensor 1: counts the vehicles waiting in a lane.
-    int detectVehicles(const char* laneName) 
+    int detectVehicles(const char* laneName)
     {
-        if (mode == 1) 
+        if (mode == 1)
         {
             char prompt[60];
             strcpy(prompt, "Enter vehicles for ");
@@ -73,24 +79,21 @@ public:
         }
 
         int count = nextInt(5, 40);
-        cout << "[SENSOR] " << laneName << " lane: "
-             << count << " vehicles detected\n";
+        cout << "[SENSOR] " << laneName << " lane: " << count << " vehicles detected\n";
         return count;
     }
 
     // Sensor 2: detects how many generic emergency vehicles are in a lane.
-    int detectEmergencies(const char* laneName, int vehicleCount) 
+    int detectEmergencies(const char* laneName, int vehicleCount)
     {
-        if (vehicleCount == 0) 
+        if (vehicleCount == 0)
         {
             return 0;
         }
 
-        int limit = vehicleCount < MAX_EMERGENCY_PER_LANE
-                        ? vehicleCount
-                        : MAX_EMERGENCY_PER_LANE;
+        int limit = vehicleCount < MAX_EMERGENCY_PER_LANE ? vehicleCount : MAX_EMERGENCY_PER_LANE;
 
-        if (mode == 1) 
+        if (mode == 1)
         {
             char prompt[70];
             strcpy(prompt, "How many emergency vehicles in ");
@@ -101,7 +104,7 @@ public:
 
         int found = (nextInt(1, 4) == 1) ? 1 : 0;
 
-        if (found > 0) 
+        if (found > 0)
         {
             cout << "[SENSOR] Siren detected in " << laneName << " lane\n";
         }
@@ -110,14 +113,13 @@ public:
     }
 
     // Position (1 = front of queue) of the emergency vehicle in its lane.
-    int detectEmergencyPosition(int vehicleCount,
-                                const int used[], int usedCount) 
+    int detectEmergencyPosition(int vehicleCount, const int used[], int usedCount)
     {
-        while (true) 
+        while (true)
         {
             int position;
 
-            if (mode == 1) 
+            if (mode == 1)
             {
                 char prompt[60];
                 strcpy(prompt, "Enter emergency vehicle ID (1 to ");
@@ -126,12 +128,14 @@ public:
                 int digits = 0;
                 char reversed[12];
 
-                do {
+                do
+                {
                     reversed[digits++] = static_cast<char>('0' + n % 10);
                     n /= 10;
-                } while (n > 0);
+                }
+                while (n > 0);
 
-                for (int i = 0; i < digits; i++) 
+                for (int i = 0; i < digits; i++)
                 {
                     number[i] = reversed[digits - 1 - i];
                 }
@@ -140,17 +144,17 @@ public:
                 strcat(prompt, number);
                 strcat(prompt, "): ");
                 position = readInt(prompt, 1, vehicleCount);
-            } 
-            else 
+            }
+            else
             {
                 position = nextInt(1, vehicleCount);
             }
 
             bool alreadyUsed = false;
 
-            for (int i = 0; i < usedCount; i++) 
+            for (int i = 0; i < usedCount; i++)
             {
-                if (used[i] == position) 
+                if (used[i] == position)
                 {
                     alreadyUsed = true;
                 }
@@ -161,11 +165,11 @@ public:
                 return position;
             }
 
-            if (mode == 1) 
+            if (mode == 1)
             {
                 cout << "That vehicle is already marked as emergency.\n";
             }
         }
     }
-
 };
+
