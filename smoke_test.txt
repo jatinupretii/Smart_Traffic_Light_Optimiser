@@ -1,0 +1,43 @@
+
+=== SMART TRAFFIC LIGHT OPTIMISER ===
+
+Detection mode:
+  1 = Manual entry (operator types what the sensor reads)
+  2 = Random sensor simulation
+Choose mode: 
+Enter vehicles for North: Enter vehicles for South: Enter vehicles for East: Enter vehicles for West: 
+--- INITIAL TRAFFIC AFTER EMERGENCY TRANSFER ---
+North normal queue: 0
+South normal queue: 0
+East normal queue:  0
+West normal queue:  0
+
+Selected phase: NORTH-SOUTH
+North-South green time: 10 seconds
+East-West green time: 10 seconds
+
+NORTH-SOUTH has no waiting vehicles. Phase skipped.
+
+EAST-WEST has no waiting vehicles. Phase skipped.
+
+--- FINAL QUEUE REPORT ---
+North: 0
+South: 0
+East:  0
+West:  0
+
+--- SIMULATION PERFORMANCE SUMMARY ---
+Initial vehicles: 0
+Emergency vehicles served: 0
+Normal vehicles served: 0
+Total vehicles served: 0
+Normal vehicles remaining: 0
+Total vehicles remaining: 0
+
+All normal vehicles have been served.
+
+Show detailed analytics (Module 6)? (y/n): 
+=== SIMULATION COMPLETED ===
+
+Run another simulation? (y/n): 
+Goodbye.
