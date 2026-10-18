@@ -6,7 +6,8 @@
 // MODULE 1: VEHICLE MANAGEMENT
 // ============================================================
 
-enum VehicleType {
+enum VehicleType 
+{
     CAR,
     BUS,
     MOTORBIKE,
@@ -14,7 +15,8 @@ enum VehicleType {
     EMERGENCY
 };
 
-class Vehicle {
+class Vehicle 
+{
 private:
     int id;
     VehicleType type;
@@ -24,17 +26,21 @@ private:
     static int createdCount;   // static member: counts vehicles built
 
 public:
-    static bool isEmergencyType(VehicleType t) {
+    static bool isEmergencyType(VehicleType t) 
+    {
         return t == EMERGENCY;
     }
 
     // Phase II: all emergency vehicles share one highest priority.
-    static int defaultPriority(VehicleType t) {
+    static int defaultPriority(VehicleType t) 
+    {
         return (t == EMERGENCY) ? 100 : 0;
     }
 
-    static const char* typeName(VehicleType t) {
-        switch (t) {
+    static const char* typeName(VehicleType t) 
+    {
+        switch (t) 
+        {
             case CAR:        return "Car";
             case BUS:        return "Bus";
             case MOTORBIKE:  return "Motorbike";
@@ -44,11 +50,13 @@ public:
         return "Unknown";
     }
 
-    static int getCreatedCount() {
+    static int getCreatedCount() 
+    {
         return createdCount;
     }
 
-    Vehicle() {
+    Vehicle() 
+    {
         id = 0;
         type = CAR;
         arrivalTime = 0;
@@ -56,16 +64,20 @@ public:
     }
 
     Vehicle(int vehicleId, VehicleType vehicleType,
-            int arrival, int emergencyPriority = 0) {
+            int arrival, int emergencyPriority = 0) 
+    {
         id = vehicleId;
         type = vehicleType;
         arrivalTime = arrival;
 
-        if (isEmergencyType(type)) {
+        if (isEmergencyType(type)) 
+        {
             priority = (emergencyPriority > 0)
                            ? emergencyPriority
                            : defaultPriority(type);
-        } else {
+        } 
+        else 
+        {
             priority = 0;
         }
 
@@ -84,11 +96,13 @@ public:
 
 int Vehicle::createdCount = 0;
 
-ostream& operator<<(ostream& out, const Vehicle& v) {
+ostream& operator<<(ostream& out, const Vehicle& v) 
+{
     out << Vehicle::typeName(v.type) << " #" << v.id
         << " (arrived " << v.arrivalTime << "s)";
 
-    if (v.isEmergency()) {
+    if (v.isEmergency()) 
+    {
         out << " priority " << v.priority;
     }
 
@@ -102,7 +116,8 @@ ostream& operator<<(ostream& out, const Vehicle& v) {
 // MODULE 1: LANE USING A CIRCULAR QUEUE
 // ============================================================
 
-class Lane : public Reportable {
+class Lane : public Reportable 
+{
 private:
     Vehicle vehicles[LANE_CAPACITY];
 
@@ -126,12 +141,14 @@ private:
     }
 
 public:
-    Lane() {
+    Lane() 
+    {
         initCounters();
         strcpy(laneName, "Unknown");
     }
 
-    Lane(const char* name) {
+    Lane(const char* name) 
+    {
         initCounters();
         strncpy(laneName, name, sizeof(laneName) - 1);
         laneName[sizeof(laneName) - 1] = '\0';
@@ -143,8 +160,10 @@ public:
     const char* getName() const { return laneName; }
 
     // ENQUEUE
-    bool addVehicle(const Vehicle& vehicle) {
-        if (isFull()) {
+    bool addVehicle(const Vehicle& vehicle) 
+    {
+        if (isFull()) 
+        {
             totalRejected++;
             return false;
         }
@@ -158,8 +177,10 @@ public:
     }
 
     // DEQUEUE
-    bool serveVehicle(Vehicle& servedVehicle) {
-        if (isEmpty()) {
+    bool serveVehicle(Vehicle& servedVehicle) 
+    {
+        if (isEmpty()) 
+        {
             return false;
         }
 
@@ -172,8 +193,10 @@ public:
     }
 
     // PEEK
-    bool peekVehicle(Vehicle& vehicle) const {
-        if (isEmpty()) {
+    bool peekVehicle(Vehicle& vehicle) const 
+    {
+        if (isEmpty()) 
+        {
             return false;
         }
 
