@@ -183,24 +183,29 @@ public:
 
     // Takes ONE vehicle out of the middle of the queue (used when a siren
     // is detected inside a normal queue). Later vehicles shift forward.
-    bool extractVehicleById(int vehicleId, Vehicle& removed) {
+    bool extractVehicleById(int vehicleId, Vehicle& removed) 
+{
         int position = -1;
 
-        for (int i = 0; i < vehicleCount; i++) {
+        for (int i = 0; i < vehicleCount; i++) 
+        {
             if (vehicles[(frontIndex + i) % LANE_CAPACITY].getId()
-                == vehicleId) {
+                == vehicleId) 
+            {
                 position = i;
                 break;
             }
         }
 
-        if (position == -1) {
+        if (position == -1) 
+        {
             return false;
         }
 
         removed = vehicles[(frontIndex + position) % LANE_CAPACITY];
 
-        for (int i = position; i < vehicleCount - 1; i++) {
+        for (int i = position; i < vehicleCount - 1; i++) 
+        {
             vehicles[(frontIndex + i) % LANE_CAPACITY] =
                 vehicles[(frontIndex + i + 1) % LANE_CAPACITY];
         }
@@ -210,13 +215,15 @@ public:
         return true;
     }
 
-    void displayStatusBar() const {
+    void displayStatusBar() const 
+    {
         const int BAR_WIDTH = 20;
         int filled = vehicleCount * BAR_WIDTH / LANE_CAPACITY;
 
         cout << left << setw(7) << laneName << right << " [";
 
-        for (int i = 0; i < BAR_WIDTH; i++) {
+        for (int i = 0; i < BAR_WIDTH; i++) 
+        {
             cout << (i < filled ? '#' : '.');
         }
 
@@ -224,13 +231,15 @@ public:
              << "/" << LANE_CAPACITY << '\n';
     }
 
-    void displayQueue() const {
+    void displayQueue() const 
+    {
         const int SHOW_LIMIT = 12;
 
         cout << "\nLane: " << laneName << " | waiting: "
              << vehicleCount << '\n';
 
-        if (isEmpty()) {
+        if (isEmpty()) 
+        {
             cout << "Queue is empty.\n";
             return;
         }
@@ -239,10 +248,12 @@ public:
 
         int shown = vehicleCount < SHOW_LIMIT ? vehicleCount : SHOW_LIMIT;
 
-        for (int i = 0; i < shown; i++) {
+        for (int i = 0; i < shown; i++) 
+        {
             cout << vehicles[(frontIndex + i) % LANE_CAPACITY].getId();
 
-            if (i < shown - 1) {
+            if (i < shown - 1) 
+            {
                 cout << " -> ";
             }
         }
@@ -254,7 +265,8 @@ public:
         cout << '\n';
     }
 
-    void displayReport() const {
+    void displayReport() const 
+    {
         cout << left << setw(7) << laneName << right
              << " waiting: " << setw(3) << vehicleCount
              << " | arrived: " << setw(3) << totalArrived
@@ -262,25 +274,11 @@ public:
              << " | rejected: " << totalRejected << '\n';
     }
 
-    const char* moduleName() const {
+    const char* moduleName() const 
+    {
         return "Module 1 - Lane Management";
     }
 };
 
-// PENDING (Phase III): remove a vehicle from the middle of the queue,
-// peak-queue statistics.
-
-
-// ============================================================
-// MODULE 1 (addition): VEHICLE DETECTOR - SIMULATED SENSOR LAYER
-//
-// A console program has no camera or road sensor, so detection is
-// SIMULATED. In a real junction this class would be replaced by
-// real hardware (inductive loop, IR/ultrasonic sensor, camera with
-// object detection, siren/RFID receiver). The rest of the project
-// would not change: it only needs "how many vehicles per lane" and
-// "which vehicle is an emergency vehicle".
-//
-//   Mode 1 - Manual : the operator types what the sensor reads.
 //   Mode 2 - Random : a seeded generator acts as the sensor.
 // ============================================================
