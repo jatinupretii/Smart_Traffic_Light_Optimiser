@@ -1,6 +1,3 @@
-
- // STUDENT 5 — ANALYTICS & REPORTS
-// Dynamic service history, linear search, bubble sort, waiting-time statistics.
 #include "Common.h"
 
 // ============================================================
