@@ -1,10 +1,4 @@
 #include "Common.h"
-
-// ============================================================
-// MODULE 6: SERVICE HISTORY AND PERFORMANCE ANALYTICS
-// MANUALLY RESIZED DYNAMIC ARRAY
-// ============================================================
-
 struct ServiceRecord
 {
     int vehicleId;
