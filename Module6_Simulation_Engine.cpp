@@ -14,7 +14,8 @@ enum LaneIdentifier
     WEST_LANE = 4
 };
 
-class TrafficSimulation {
+class TrafficSimulation 
+{
 private:
     Lane north;
     Lane south;
