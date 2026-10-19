@@ -1,13 +1,4 @@
-
- // STUDENT 4 — EMERGENCY PRIORITY & ROUTING
-// Max-heap emergency queue and graph/BFS green corridor.
 #include "Common.h"
-
-// ============================================================
-// MODULE 4: GENERIC EMERGENCY VEHICLE PRIORITY (PHASE II)
-// MANUAL BINARY MAX HEAP
-// ============================================================
-
 class EmergencyManager : public Reportable
 {
 private:
