@@ -1,11 +1,4 @@
-// STUDENT 6 — SIMULATION ENGINE & INTEGRATION
-// Connects the modules, runs phases, serves vehicles and prints final reports.
 #include "Common.h"
-
-// ============================================================
-// MAIN INTEGRATION CLASS - CONNECTS ALL SIX MODULES
-// ============================================================
-
 enum LaneIdentifier
 {
     NORTH_LANE = 1,
