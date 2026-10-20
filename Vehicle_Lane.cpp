@@ -23,7 +23,14 @@ private:
 public:
     static bool isEmergencyType(VehicleType type)
     {
-        return type == EMERGENCY;
+        if(type == EMERGENCY)
+        {
+            return true;
+        }
+        else
+        {
+            return false;
+        }
     }
 
     static int defaultPriority(VehicleType type)
@@ -40,15 +47,21 @@ public:
     {
         switch (type)
         {
-            case UNKNOWN: return "Unknown";
-            case CAR: return "Car";
-            case BUS: return "Bus";
-            case MOTORBIKE: return "Motorbike";
-            case TRUCK: return "Truck";
-            case EMERGENCY: return "Emergency Vehicle";
-        }
-
-        return "Unknown";
+            case UNKNOWN:
+                return "Unknown";
+            case CAR: 
+                return "Car";
+            case BUS: 
+                return "Bus";
+            case MOTORBIKE: 
+                return "Motorbike";
+            case TRUCK: 
+                return "Truck";
+            case EMERGENCY: 
+                return "Emergency Vehicle";
+            default:
+                 return "Unknown";
+        } 
     }
 
     static int getCreatedCount()
