@@ -1,4 +1,7 @@
+//Module 2:: Signal Control & Adaptive Timing
+
 #include "Common.h"
+
 enum SignalState
 {
     RED,
@@ -62,6 +65,7 @@ public:
         return stateChangeCount;
     }
 
+    // Only RED -> GREEN -> YELLOW -> RED is allowed.
     bool changeState(SignalState newState)
     {
         if (newState == currentState)
@@ -84,6 +88,7 @@ public:
 };
 
 
+// Linked list that records every signal change.
 class SignalEventLog
 {
 private:
@@ -311,7 +316,7 @@ private:
 public:
     TrafficAnalyzer()
     {
-        secondsPerVehicle = 2;
+        secondsPerVehicle = SECONDS_PER_VEHICLE;   // 3 seconds (see Common.h)
         minGreenTime = 10;
         maxGreenTime = 60;
     }
@@ -330,6 +335,7 @@ public:
         }
     }
 
+    // Green time = vehicles x seconds per vehicle, kept between min and max.
     int calculateGreenTime(int vehicleCount) const
     {
         if (vehicleCount < 0)
@@ -352,6 +358,7 @@ public:
         return greenTime;
     }
 
+    // The direction with more vehicles gets the green first.
     TrafficPhase choosePhase(int northSouthCount, int eastWestCount) const
     {
         if (northSouthCount >= eastWestCount)
@@ -372,7 +379,6 @@ public:
 
     const char* moduleName() const
     {
-        return "Module 4 - Adaptive Traffic Timing";
+        return "Module 2 - Adaptive Traffic Timing";
     }
 };
-

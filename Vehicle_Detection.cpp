@@ -1,3 +1,5 @@
+//Module 3:: Vehicle Detection
+
 #include "Common.h"
 
 bool readYesNo(const char* prompt)
@@ -35,6 +37,9 @@ bool readYesNo(const char* prompt)
     }
 }
 
+// A console program has no real sensor, so detection is simulated:
+//   mode 1 = the operator types what the sensor reads
+//   mode 2 = a seeded random generator acts as the sensor
 class VehicleDetector
 {
 private:
@@ -72,9 +77,7 @@ public:
         if (mode == 1)
         {
             char prompt[60];
-            strcpy(prompt, "Enter vehicles for ");
-            strcat(prompt, laneName);
-            strcat(prompt, ": ");
+            snprintf(prompt, sizeof(prompt), "Enter vehicles for %s: ", laneName);
             return readInt(prompt, 0, LANE_CAPACITY);
         }
 
@@ -83,7 +86,7 @@ public:
         return count;
     }
 
-    // Sensor 2: detects how many generic emergency vehicles are in a lane.
+    // Sensor 2: detects how many emergency vehicles are in a lane.
     int detectEmergencies(const char* laneName, int vehicleCount)
     {
         if (vehicleCount == 0)
@@ -91,14 +94,17 @@ public:
             return 0;
         }
 
-        int limit = vehicleCount < MAX_EMERGENCY_PER_LANE ? vehicleCount : MAX_EMERGENCY_PER_LANE;
+        int limit = vehicleCount;
+
+        if (limit > MAX_EMERGENCY_PER_LANE)
+        {
+            limit = MAX_EMERGENCY_PER_LANE;
+        }
 
         if (mode == 1)
         {
             char prompt[70];
-            strcpy(prompt, "How many emergency vehicles in ");
-            strcat(prompt, laneName);
-            strcat(prompt, "? ");
+            snprintf(prompt, sizeof(prompt), "How many emergency vehicles in %s? ", laneName);
             return readInt(prompt, 0, limit);
         }
 
@@ -122,27 +128,7 @@ public:
             if (mode == 1)
             {
                 char prompt[60];
-                strcpy(prompt, "Enter emergency vehicle ID (1 to ");
-                char number[12];
-                int n = vehicleCount;
-                int digits = 0;
-                char reversed[12];
-
-                do
-                {
-                    reversed[digits++] = static_cast<char>('0' + n % 10);
-                    n /= 10;
-                }
-                while (n > 0);
-
-                for (int i = 0; i < digits; i++)
-                {
-                    number[i] = reversed[digits - 1 - i];
-                }
-
-                number[digits] = '\0';
-                strcat(prompt, number);
-                strcat(prompt, "): ");
+                snprintf(prompt, sizeof(prompt), "Enter emergency vehicle ID (1 to %d): ", vehicleCount);
                 position = readInt(prompt, 1, vehicleCount);
             }
             else
@@ -172,4 +158,3 @@ public:
         }
     }
 };
-

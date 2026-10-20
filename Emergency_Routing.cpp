@@ -1,4 +1,12 @@
+//Module 4:: Emergency Routing (priority heap + green corridor)
+
 #include "Common.h"
+
+// ============================================================
+// MODULE 4 (part 1): EMERGENCY VEHICLE PRIORITY
+// MANUAL BINARY MAX HEAP
+// ============================================================
+
 class EmergencyManager : public Reportable
 {
 private:
@@ -23,6 +31,7 @@ private:
         return a.getId() < b.getId();
     }
 
+    // Move a new vehicle up until its parent has higher priority.
     void siftUp(int index)
     {
         while (index > 0)
@@ -39,6 +48,7 @@ private:
         }
     }
 
+    // Move the root down until both children have lower priority.
     void siftDown(int index)
     {
         while (true)
@@ -140,7 +150,7 @@ public:
 
         for (int i = 0; i < heapSize; i++)
         {
-            cout << "  [" << i << "] ID " << heap[i].getId() << " | " << Vehicle::typeName(heap[i].getType()) << " | HIGHEST PRIORITY" << '\n';
+            cout << "  [" << i << "] ID " << heap[i].getId() << " | " << Vehicle::typeName(heap[i].getType()) << " | Priority " << heap[i].getPriority() << '\n';
         }
 
         cout << "Note: heap-array order is not fully sorted.\n";
@@ -163,7 +173,7 @@ public:
 // non-destructive dispatch order.
 
 // ============================================================
-// MODULE 5: GREEN CORRIDOR
+// MODULE 4 (part 2): GREEN CORRIDOR
 // WEIGHTED GRAPH (ADJACENCY MATRIX) + BFS
 // ============================================================
 
@@ -409,7 +419,7 @@ public:
 
     const char* moduleName() const
     {
-        return "Module 5 - Green Corridor";
+        return "Module 4 - Green Corridor";
     }
 };
 

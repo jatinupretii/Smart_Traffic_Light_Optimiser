@@ -1,4 +1,7 @@
+//Module 6:: Simulation Engine
+
 #include "Common.h"
+
 enum LaneIdentifier
 {
     NORTH_LANE = 1,
@@ -153,9 +156,8 @@ private:
             int route[MAX_INTERSECTIONS];
             int routeLength = 0;
 
-            cout << "\n" << Vehicle::typeName(emergency.getType())
-                 << " " << emergency.getId()
-                 << " (HIGHEST PRIORITY) from "
+            // operator<< of Vehicle prints type, ID, arrival time and priority.
+            cout << "\n" << emergency << " from "
                  << laneNames[lane] << " lane\n";
 
             if (!greenCorridor.findShortestRoute(start, destination,
@@ -300,6 +302,10 @@ private:
         cout << "Normal vehicles remaining: " << normalRemaining() << '\n';
         cout << "Total vehicles remaining: "
              << normalRemaining() + emergencyManager.getCount() << '\n';
+        cout << "Emergency route failures: "
+             << emergencyRouteFailures << '\n';
+        cout << "Vehicle objects created: "
+             << Vehicle::getCreatedCount() << '\n';
     }
 
     // Polymorphism: one loop calls each module's own displayReport().
@@ -391,7 +397,7 @@ public:
             cycle++;
         }
 
-        if (readYesNo("\nShow detailed analytics (Module 6)?")) {
+        if (readYesNo("\nShow detailed analytics (Module 5)?")) {
             detailedAnalytics();
         }
 

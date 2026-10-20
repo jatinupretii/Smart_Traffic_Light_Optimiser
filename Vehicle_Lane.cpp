@@ -1,3 +1,5 @@
+//Module 1:: Vehicle & Lane Management
+
 #include "Common.h"
 
 enum VehicleType
@@ -82,7 +84,7 @@ public:
         this->type = type;
         arrivalTime = arrival;
 
-       if (type == EMERGENCY)
+        if (type == EMERGENCY)
         {
             if (emergencyPriority > 0)
             {
@@ -90,7 +92,7 @@ public:
             }
             else
             {
-                priority = 100;
+                priority = defaultPriority(type);
             }
         }
         else
@@ -223,6 +225,7 @@ public:
         return laneName;
     }
 
+    // Enqueue: add a vehicle at the rear of the circular queue.
     bool addVehicle(const Vehicle& vehicle)
     {
         if(isFull())
@@ -245,6 +248,7 @@ public:
         return true;
     }
 
+    // Dequeue: remove the vehicle at the front.
     bool serveVehicle(Vehicle& servedVehicle)
     {
         if (isEmpty())
@@ -269,6 +273,7 @@ public:
         return true;
     }
 
+    // Peek: look at the front vehicle without removing it.
     bool peekVehicle(Vehicle& vehicle) const
     {
         if (isEmpty())
@@ -280,6 +285,7 @@ public:
         return true;
     }
 
+    // Remove one vehicle from the middle of the queue (used for emergency vehicles).
     bool extractVehicleById(int vehicleId, Vehicle& removedVehicle)
     {
         if (isEmpty())
@@ -336,7 +342,7 @@ public:
         const int BAR_WIDTH = 20;
         int filled = vehicleCount * BAR_WIDTH / LANE_CAPACITY;
 
-        cout << left << setw(7) << laneName << " [";
+        cout << left << setw(7) << laneName << right << " [";
 
         for (int i = 0; i < BAR_WIDTH; i++)
         {
