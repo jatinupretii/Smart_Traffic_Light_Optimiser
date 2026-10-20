@@ -54,9 +54,7 @@ public:
                 return "Emergency Vehicle";
             default:
                  return "Unknown";
-        }
-
-       
+        } 
     }
 
     static int getCreatedCount()
