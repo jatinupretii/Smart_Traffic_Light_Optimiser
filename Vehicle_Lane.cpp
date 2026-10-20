@@ -1,4 +1,3 @@
-
 #include "Common.h"
 
 enum VehicleType
@@ -14,7 +13,7 @@ enum VehicleType
 class Vehicle
 {
 private:
-    int id;
+    int vehicleId;
     VehicleType type;
     int arrivalTime;
     int priority;
@@ -60,7 +59,7 @@ public:
             case EMERGENCY: 
                 return "Emergency Vehicle";
             default:
-                 return "Unknown";
+                return "Unknown";
         } 
     }
 
@@ -71,7 +70,7 @@ public:
 
     Vehicle()
     {
-        id = 0;
+        vehicleId = 0;
         type = UNKNOWN;
         arrivalTime = 0;
         priority = 0;
@@ -79,11 +78,11 @@ public:
 
     Vehicle(int vehicleId, VehicleType type, int arrival, int emergencyPriority = 0)
     {
-        id = vehicleId;
+        this->vehicleId = vehicleId;
         this->type = type;
         arrivalTime = arrival;
 
-        if (isEmergencyType(this->type))
+       if (type == EMERGENCY)
         {
             if (emergencyPriority > 0)
             {
@@ -91,20 +90,19 @@ public:
             }
             else
             {
-                priority = defaultPriority(this->type);
+                priority = 100;
             }
         }
         else
         {
             priority = 0;
         }
-
         createdCount++;
     }
 
     int getId() const
     {
-        return id;
+        return vehicleId;
     }
 
     VehicleType getType() const
@@ -134,7 +132,7 @@ int Vehicle::createdCount = 0;
 
 ostream& operator<<(ostream& out, const Vehicle& vehicle)
 {
-    out << Vehicle::typeName(vehicle.type) << " " << vehicle.id << " (arrived " << vehicle.arrivalTime << "s";
+    out << Vehicle::typeName(vehicle.type) << " " << vehicle.vehicleId << " (arrived " << vehicle.arrivalTime << "s";
 
     if (vehicle.isEmergency())
     {
@@ -160,7 +158,7 @@ private:
 
     void initCounters()
     {
-        frontIndex = 0;
+        frontIndex = -1;
         rearIndex = -1;
         vehicleCount = 0;
         totalArrived = 0;
@@ -193,12 +191,26 @@ public:
 
     bool isEmpty() const
     {
-        return vehicleCount == 0;
+        if(frontIndex==-1)
+        {
+            return true;
+        }
+        else
+        {
+            return false;
+        }
     }
 
     bool isFull() const
     {
-        return vehicleCount == LANE_CAPACITY;
+        if(vehicleCount == LANE_CAPACITY)
+        {
+            return true;
+        }
+        else
+        {
+            return false;
+        }
     }
 
     int getCount() const
@@ -213,17 +225,23 @@ public:
 
     bool addVehicle(const Vehicle& vehicle)
     {
-        if (isFull())
+        if(isFull())
         {
             totalRejected++;
             return false;
         }
-
-        rearIndex = (rearIndex + 1) % LANE_CAPACITY;
+        if(frontIndex == -1)
+        {
+            frontIndex = 0;
+            rearIndex = 0;
+        }
+        else
+        {
+            rearIndex = (rearIndex + 1) % LANE_CAPACITY;
+        }
         vehicles[rearIndex] = vehicle;
         vehicleCount++;
         totalArrived++;
-
         return true;
     }
 
@@ -235,14 +253,17 @@ public:
         }
 
         servedVehicle = vehicles[frontIndex];
-        frontIndex = (frontIndex + 1) % LANE_CAPACITY;
         vehicleCount--;
         totalServed++;
 
-        if (isEmpty())
+        if (vehicleCount == 0)
         {
-            frontIndex = 0;
+            frontIndex = -1;
             rearIndex = -1;
+        }
+        else
+        {
+            frontIndex = (frontIndex + 1) % LANE_CAPACITY;
         }
 
         return true;
@@ -261,6 +282,11 @@ public:
 
     bool extractVehicleById(int vehicleId, Vehicle& removedVehicle)
     {
+        if (isEmpty())
+        {
+            return false;
+        }
+
         int position = -1;
 
         for (int i = 0; i < vehicleCount; i++)
@@ -292,9 +318,9 @@ public:
         vehicleCount--;
         totalExtracted++;
 
-        if (isEmpty())
+        if (vehicleCount == 0)
         {
-            frontIndex = 0;
+            frontIndex = -1;
             rearIndex = -1;
         }
         else
@@ -314,9 +340,15 @@ public:
 
         for (int i = 0; i < BAR_WIDTH; i++)
         {
-            cout << (i < filled ? '#' : '.');
+            if (i < filled)
+            {
+                cout << '#';
+            }
+            else
+            {
+                cout << '.';
+            }
         }
-
         cout << "] " << vehicleCount << "/" << LANE_CAPACITY << '\n';
     }
 
