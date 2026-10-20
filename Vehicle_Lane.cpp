@@ -59,7 +59,7 @@ public:
             case EMERGENCY: 
                 return "Emergency Vehicle";
             default:
-                return "Unknown";
+                 return "Unknown";
         } 
     }
 
