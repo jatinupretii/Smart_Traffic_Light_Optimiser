@@ -23,7 +23,14 @@ private:
 public:
     static bool isEmergencyType(VehicleType type)
     {
-        return type == EMERGENCY;
+        if(type == EMERGENCY)
+        {
+            return true;
+        }
+        else
+        {
+            return false;
+        }
     }
 
     static int defaultPriority(VehicleType type)
