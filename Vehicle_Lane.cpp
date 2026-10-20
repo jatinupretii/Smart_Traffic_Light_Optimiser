@@ -40,15 +40,23 @@ public:
     {
         switch (type)
         {
-            case UNKNOWN: return "Unknown";
-            case CAR: return "Car";
-            case BUS: return "Bus";
-            case MOTORBIKE: return "Motorbike";
-            case TRUCK: return "Truck";
-            case EMERGENCY: return "Emergency Vehicle";
+            case UNKNOWN:
+                return "Unknown";
+            case CAR: 
+                return "Car";
+            case BUS: 
+                return "Bus";
+            case MOTORBIKE: 
+                return "Motorbike";
+            case TRUCK: 
+                return "Truck";
+            case EMERGENCY: 
+                return "Emergency Vehicle";
+            default:
+                 return "Unknown";
         }
 
-        return "Unknown";
+       
     }
 
     static int getCreatedCount()
