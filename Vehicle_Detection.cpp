@@ -37,9 +37,7 @@ bool readYesNo(const char* prompt)
     }
 }
 
-// A console program has no real sensor, so detection is simulated:
-//   mode 1 = the operator types what the sensor reads
-//   mode 2 = a seeded random generator acts as the sensor
+
 class VehicleDetector
 {
 private:
