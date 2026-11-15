@@ -12,7 +12,6 @@ import subprocess
 
 LANES = ["North", "South", "East", "West"]
 
-# YOLO class name (lower case; "_" and "-" are read as spaces) -> token in detections.txt.
 # The standard COCO model only knows car, bus, motorcycle and truck. The emergency
 # classes need a custom-trained model whose class names match one of these.
 CLASS_MAP = {
