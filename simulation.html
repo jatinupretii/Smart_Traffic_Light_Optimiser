@@ -1,873 +1,1326 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Smart Traffic Light Optimiser</title>
-<style>
-  :root {
-    --bg: #f3f5f9; --panel: #ffffff; --text: #18202c; --muted: #5d6a7e; --line: #dce2ec;
-    --chip: #eaeff6; --field: #f7f9fc; --accent: #1b9e8f; --good: #168a4a; --bad: #c62f2f;
-    color-scheme: light dark;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) {
-      --bg: #0e131a; --panel: #161d27; --text: #e7ecf3; --muted: #98a5b8; --line: #263040;
-      --chip: #1f2937; --field: #101720; --good: #47c27e; --bad: #ff7b72;
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Smart Traffic Light Optimiser</title>
+  <style>
+    :root {
+      --bg: #f3f5f9;
+      --panel: #ffffff;
+      --text: #18202c;
+      --muted: #5d6a7e;
+      --line: #dce2ec;
+      --chip: #eaeff6;
+      --field: #f7f9fc;
+      --accent: #1b9e8f;
+      --good: #168a4a;
+      --bad: #c62f2f;
+      color-scheme: light dark;
     }
-  }
-  :root[data-theme="dark"] {
-    --bg: #0e131a; --panel: #161d27; --text: #e7ecf3; --muted: #98a5b8; --line: #263040;
-    --chip: #1f2937; --field: #101720; --good: #47c27e; --bad: #ff7b72;
-  }
-  * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
-  .wrap { max-width: 1200px; margin: 0 auto; padding: 18px 16px 36px; }
-  h1 { font-size: 28px; margin: 0 0 4px; }
-  h2 { font-size: 18px; margin: 0 0 12px; }
-  p.lead { margin: 0 0 16px; color: var(--muted); max-width: 820px; }
-  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
-  .lanes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
-  .lane { background: var(--field); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
-  .lane h3 { margin: 0 0 8px; font-size: 16px; }
-  .lane label { display: block; font-size: 13px; color: var(--muted); margin-top: 6px; }
-  input[type="number"], select {
-    width: 100%; margin-top: 3px; padding: 7px 9px; border-radius: 8px; border: 1px solid var(--line);
-    background: var(--panel); color: var(--text); font: inherit; font-size: 15px;
-  }
-  .row { display: flex; flex-wrap: wrap; align-items: end; gap: 16px; margin-top: 14px; }
-  .row label { font-size: 13px; color: var(--muted); }
-  .row input[type="number"] { width: 90px; }
-  .row select { width: auto; min-width: 250px; }
-  .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 14px; }
-  .controls label { font-size: 14px; color: var(--muted); }
-  .controls select { width: auto; margin: 0 0 0 6px; }
-  .btn { border: 1px solid var(--line); background: var(--chip); color: var(--text); border-radius: 8px; padding: 9px 16px; font: inherit; cursor: pointer; }
-  .btn:hover { filter: brightness(.96); }
-  .btn.primary { background: var(--accent); color: #fff; border-color: transparent; font-weight: 600; }
-  .btn:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  .clock { margin-left: auto; font-variant-numeric: tabular-nums; font-weight: 600; }
-  .sims { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-  .card h3 { margin: 0; font-size: 17px; }
-  .card p { margin: 2px 0 10px; font-size: 14px; color: var(--muted); min-height: 42px; }
-  canvas.scene { display: block; width: 100%; aspect-ratio: 1 / 1; border-radius: 10px; background: #2f5a2f; }
-  .status { display: flex; align-items: center; gap: 8px; margin: 10px 0 8px; font-weight: 600; min-height: 26px; }
-  .dot { width: 12px; height: 12px; border-radius: 50%; flex: none; background: #888; }
-  .dot.G { background: #34c759; box-shadow: 0 0 8px #34c759; }
-  .dot.Y { background: #ffcc00; box-shadow: 0 0 8px #ffcc00; }
-  .dot.R { background: #ff3b30; box-shadow: 0 0 8px #ff3b30; }
-  .dot.D { background: #8e9bb0; }
-  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-  .stats div { background: var(--chip); border-radius: 8px; padding: 8px 10px; }
-  .stats b { display: block; font-size: 19px; font-variant-numeric: tabular-nums; }
-  .stats span { font-size: 12px; color: var(--muted); }
-  .rrow { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 18px; padding: 10px 0; border-bottom: 1px solid var(--line); }
-  .rrow:last-child { border-bottom: 0; }
-  .rlabel { flex: 1 1 280px; font-weight: 600; }
-  .rvals { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; font-size: 17px; font-variant-numeric: tabular-nums; }
-  .rvals .arrow { color: var(--muted); }
-  .rnote { font-weight: 700; }
-  .good { color: var(--good); }
-  .bad { color: var(--bad); }
-  .hint { color: var(--muted); }
-  .chip { display: inline-block; font-size: 13px; padding: 4px 10px; border-radius: 999px; background: var(--chip); color: var(--muted); }
-  .chip.ok { background: rgba(31,157,85,.16); color: var(--good); font-weight: 600; }
-  .chip.bad { background: rgba(198,47,47,.16); color: var(--bad); font-weight: 600; }
-  @media (max-width: 860px) { .sims { grid-template-columns: 1fr; } .lanes { grid-template-columns: repeat(2, 1fr); } }
-</style>
+
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --bg: #0e131a;
+        --panel: #161d27;
+        --text: #e7ecf3;
+        --muted: #98a5b8;
+        --line: #263040;
+        --chip: #1f2937;
+        --field: #101720;
+        --good: #47c27e;
+        --bad: #ff7b72;
+      }
+    }
+
+    :root[data-theme="dark"] {
+      --bg: #0e131a;
+      --panel: #161d27;
+      --text: #e7ecf3;
+      --muted: #98a5b8;
+      --line: #263040;
+      --chip: #1f2937;
+      --field: #101720;
+      --good: #47c27e;
+      --bad: #ff7b72;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+
+    .wrap {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 18px 16px 36px;
+    }
+
+    h1 {
+      font-size: 28px;
+      margin: 0 0 4px;
+    }
+
+    h2 {
+      font-size: 18px;
+      margin: 0 0 12px;
+    }
+
+    p.lead {
+      margin: 0 0 16px;
+      color: var(--muted);
+      max-width: 820px;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    .lanes {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+
+    .lane {
+      background: var(--field);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px 12px;
+    }
+
+    .lane h3 {
+      margin: 0 0 8px;
+      font-size: 16px;
+    }
+
+    .lane label {
+      display: block;
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 6px;
+    }
+
+    input[type="number"],
+    select {
+      width: 100%;
+      margin-top: 3px;
+      padding: 7px 9px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--text);
+      font: inherit;
+      font-size: 15px;
+    }
+
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: end;
+      gap: 16px;
+      margin-top: 14px;
+    }
+
+    .row label {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .row input[type="number"] {
+      width: 90px;
+    }
+
+    .row select {
+      width: auto;
+      min-width: 250px;
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .controls label {
+      font-size: 14px;
+      color: var(--muted);
+    }
+
+    .controls select {
+      width: auto;
+      margin: 0 0 0 6px;
+    }
+
+    .btn {
+      border: 1px solid var(--line);
+      background: var(--chip);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 9px 16px;
+      font: inherit;
+      cursor: pointer;
+    }
+
+    .btn:hover {
+      filter: brightness(.96);
+    }
+
+    .btn.primary {
+      background: var(--accent);
+      color: #fff;
+      border-color: transparent;
+      font-weight: 600;
+    }
+
+    .btn:focus-visible,
+    input:focus-visible,
+    select:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    .clock {
+      margin-left: auto;
+      font-variant-numeric: tabular-nums;
+      font-weight: 600;
+    }
+
+    .sims {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .card h3 {
+      margin: 0;
+      font-size: 17px;
+    }
+
+    .card p {
+      margin: 2px 0 10px;
+      font-size: 14px;
+      color: var(--muted);
+      min-height: 42px;
+    }
+
+    canvas.scene {
+      display: block;
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      border-radius: 10px;
+      background: #2f5a2f;
+    }
+
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 10px 0 8px;
+      font-weight: 600;
+      min-height: 26px;
+    }
+
+    .dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      flex: none;
+      background: #888;
+    }
+
+    .dot.G {
+      background: #34c759;
+      box-shadow: 0 0 8px #34c759;
+    }
+
+    .dot.Y {
+      background: #ffcc00;
+      box-shadow: 0 0 8px #ffcc00;
+    }
+
+    .dot.R {
+      background: #ff3b30;
+      box-shadow: 0 0 8px #ff3b30;
+    }
+
+    .dot.D {
+      background: #8e9bb0;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .stats div {
+      background: var(--chip);
+      border-radius: 8px;
+      padding: 8px 10px;
+    }
+
+    .stats b {
+      display: block;
+      font-size: 19px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .stats span {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .rrow {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 6px 18px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .rrow:last-child {
+      border-bottom: 0;
+    }
+
+    .rlabel {
+      flex: 1 1 280px;
+      font-weight: 600;
+    }
+
+    .rvals {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 6px 14px;
+      font-size: 17px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .rvals .arrow {
+      color: var(--muted);
+    }
+
+    .rnote {
+      font-weight: 700;
+    }
+
+    .good {
+      color: var(--good);
+    }
+
+    .bad {
+      color: var(--bad);
+    }
+
+    .hint {
+      color: var(--muted);
+    }
+
+    .chip {
+      display: inline-block;
+      font-size: 13px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: var(--chip);
+      color: var(--muted);
+    }
+
+    .chip.ok {
+      background: rgba(31, 157, 85, .16);
+      color: var(--good);
+      font-weight: 600;
+    }
+
+    .chip.bad {
+      background: rgba(198, 47, 47, .16);
+      color: var(--bad);
+      font-weight: 600;
+    }
+
+    @media (max-width: 860px) {
+      .sims {
+        grid-template-columns: 1fr;
+      }
+
+      .lanes {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+  </style>
 </head>
+
 <body>
-<div class="wrap">
-  <h1>🚦 Smart Traffic Light Optimiser</h1>
-  <p class="lead">The green time adapts to the number of vehicles waiting in each lane. The same traffic runs on two roads: a normal fixed timer (left) and our adaptive system (right).</p>
+  <div class="wrap">
+    <h1>🚦 Smart Traffic Light Optimiser</h1>
+    <p class="lead">The green time adapts to the number of vehicles waiting in each lane. The same traffic runs on two
+      roads: a normal fixed timer (left) and our adaptive system (right).</p>
 
-  <section class="panel">
-    <h2>1. Enter the vehicles</h2>
-    <div class="lanes">
-      <div class="lane"><h3>North</h3>
-        <label>Vehicles waiting<input type="number" id="n0" min="0" max="99" value="35"></label>
-        <label>Emergency vehicle<select id="e0"><option value="">None</option><option value="ambulance">🚑 Ambulance</option><option value="firetruck">🚒 Fire truck</option><option value="police">🚓 Police car</option></select></label></div>
-      <div class="lane"><h3>South</h3>
-        <label>Vehicles waiting<input type="number" id="n1" min="0" max="99" value="35"></label>
-        <label>Emergency vehicle<select id="e1"><option value="">None</option><option value="ambulance">🚑 Ambulance</option><option value="firetruck">🚒 Fire truck</option><option value="police">🚓 Police car</option></select></label></div>
-      <div class="lane"><h3>East</h3>
-        <label>Vehicles waiting<input type="number" id="n2" min="0" max="99" value="10"></label>
-        <label>Emergency vehicle<select id="e2"><option value="">None</option><option value="ambulance">🚑 Ambulance</option><option value="firetruck">🚒 Fire truck</option><option value="police">🚓 Police car</option></select></label></div>
-      <div class="lane"><h3>West</h3>
-        <label>Vehicles waiting<input type="number" id="n3" min="0" max="99" value="10"></label>
-        <label>Emergency vehicle<select id="e3"><option value="">None</option><option value="ambulance">🚑 Ambulance</option><option value="firetruck">🚒 Fire truck</option><option value="police">🚓 Police car</option></select></label></div>
-    </div>
-    <div class="row">
-      <label>Fixed timer green time (seconds)<br><input type="number" id="fixedGreen" min="10" max="60" step="5" value="30"></label>
-      <label>Or pick an example<br>
-        <select id="examples">
-          <option value="">Choose an example…</option>
-          <option value="uneven">Uneven traffic (North–South heavy)</option>
-          <option value="oneHeavy">One heavy lane</option>
-          <option value="empty">One direction empty</option>
-          <option value="balanced">Balanced traffic</option>
-          <option value="light">Light traffic</option>
-          <option value="emergency">Traffic with emergency vehicles</option>
-        </select></label>
-    </div>
-  </section>
 
-  <section class="panel">
-    <h2>2. Simulation</h2>
-    <div class="controls">
-      <button class="btn primary" id="btnStart" type="button">▶ Start</button>
-      <button class="btn" id="btnPause" type="button" disabled>⏸ Pause</button>
-      <button class="btn" id="btnSkip" type="button">⏭ Skip to result</button>
-      <label>Speed
-        <select id="speed"><option value="1">1×</option><option value="2">2×</option><option value="5" selected>5×</option><option value="10">10×</option><option value="25">25×</option></select></label>
-      <span class="clock" id="clock">0 s</span>
-    </div>
-    <div class="sims">
-      <article class="card">
-        <h3>Fixed timer</h3>
-        <p>Every direction gets the same green time.</p>
-        <canvas class="scene" id="sceneFixed" aria-label="Junction with the fixed timer"></canvas>
-        <div class="status"><span class="dot" id="dotFixed"></span><span id="statusFixed"></span></div>
-        <div class="stats">
-          <div><b id="wFixed">0</b><span>waiting</span></div>
-          <div><b id="sFixed">0</b><span>passed</span></div>
-          <div><b id="aFixed">–</b><span>average wait so far</span></div>
+    <section class="panel" id="imageImportPanel">
+      <h2>Image-based vehicle detection</h2>
+      <p class="hint">Upload an intersection image. YOLO detects vehicles, assigns four approaches automatically, and
+        fills the lane inputs below.</p>
+      <div class="controls">
+        <input type="file" id="trafficImage" accept="image/png,image/jpeg,image/webp">
+        <button class="btn primary" id="btnDetectImage" type="button">Detect and populate lanes</button>
+        <span id="detectStatus" class="hint" role="status">No image processed yet.</span>
+      </div>
+      <img id="detectionPreview" alt="Annotated vehicle detection result"
+        style="display:none;max-width:100%;height:auto;border-radius:10px;border:1px solid var(--line);margin-top:10px">
+      <div id="detectionSummary" class="hint" style="margin-top:10px"></div>
+    </section>
+
+    <section class="panel">
+      <h2>1. Enter the vehicles</h2>
+      <div class="lanes">
+        <div class="lane">
+          <h3>North</h3>
+          <label>Vehicles waiting<input type="number" id="n0" min="0" max="99" value="35"></label>
+          <label>Emergency vehicle<select id="e0">
+              <option value="">None</option>
+              <option value="ambulance">🚑 Ambulance</option>
+              <option value="firetruck">🚒 Fire truck</option>
+              <option value="police">🚓 Police car</option>
+            </select></label>
         </div>
-      </article>
-      <article class="card">
-        <h3>Adaptive system (ours)</h3>
-        <p>Green time follows the queue. Emergency vehicles use the green strip (green corridor lane).</p>
-        <canvas class="scene" id="sceneAdaptive" aria-label="Junction with the adaptive system"></canvas>
-        <div class="status"><span class="dot" id="dotAdaptive"></span><span id="statusAdaptive"></span></div>
-        <div class="stats">
-          <div><b id="wAdaptive">0</b><span>waiting</span></div>
-          <div><b id="sAdaptive">0</b><span>passed</span></div>
-          <div><b id="aAdaptive">–</b><span>average wait so far</span></div>
+        <div class="lane">
+          <h3>South</h3>
+          <label>Vehicles waiting<input type="number" id="n1" min="0" max="99" value="35"></label>
+          <label>Emergency vehicle<select id="e1">
+              <option value="">None</option>
+              <option value="ambulance">🚑 Ambulance</option>
+              <option value="firetruck">🚒 Fire truck</option>
+              <option value="police">🚓 Police car</option>
+            </select></label>
         </div>
-      </article>
-    </div>
-  </section>
+        <div class="lane">
+          <h3>East</h3>
+          <label>Vehicles waiting<input type="number" id="n2" min="0" max="99" value="10"></label>
+          <label>Emergency vehicle<select id="e2">
+              <option value="">None</option>
+              <option value="ambulance">🚑 Ambulance</option>
+              <option value="firetruck">🚒 Fire truck</option>
+              <option value="police">🚓 Police car</option>
+            </select></label>
+        </div>
+        <div class="lane">
+          <h3>West</h3>
+          <label>Vehicles waiting<input type="number" id="n3" min="0" max="99" value="10"></label>
+          <label>Emergency vehicle<select id="e3">
+              <option value="">None</option>
+              <option value="ambulance">🚑 Ambulance</option>
+              <option value="firetruck">🚒 Fire truck</option>
+              <option value="police">🚓 Police car</option>
+            </select></label>
+        </div>
+      </div>
+      <div class="row">
+        <label>Fixed timer green time (seconds)<br><input type="number" id="fixedGreen" min="10" max="60" step="5"
+            value="30"></label>
+        <label>Or pick an example<br>
+          <select id="examples">
+            <option value="">Choose an example…</option>
+            <option value="uneven">Uneven traffic (North–South heavy)</option>
+            <option value="oneHeavy">One heavy lane</option>
+            <option value="empty">One direction empty</option>
+            <option value="balanced">Balanced traffic</option>
+            <option value="light">Light traffic</option>
+            <option value="emergency">Traffic with emergency vehicles</option>
+          </select></label>
+      </div>
+    </section>
 
-  <section class="panel">
-    <h2>3. Result</h2>
-    <div class="hint" id="resultHint">Press Start. The result appears when every vehicle has passed (or press “Skip to result”).</div>
-    <div id="resultBody" hidden></div>
-  </section>
+    <section class="panel">
+      <h2>2. Simulation</h2>
+      <div class="controls">
+        <button class="btn primary" id="btnStart" type="button">▶ Start</button>
+        <button class="btn" id="btnPause" type="button" disabled>⏸ Pause</button>
+        <button class="btn" id="btnSkip" type="button">⏭ Skip to result</button>
+        <label>Speed
+          <select id="speed">
+            <option value="1">1×</option>
+            <option value="2">2×</option>
+            <option value="5" selected>5×</option>
+            <option value="10">10×</option>
+            <option value="25">25×</option>
+          </select></label>
+        <span class="clock" id="clock">0 s</span>
+      </div>
+      <div class="sims">
+        <article class="card">
+          <h3>Fixed timer</h3>
+          <p>Every direction gets the same green time.</p>
+          <canvas class="scene" id="sceneFixed" aria-label="Junction with the fixed timer"></canvas>
+          <div class="status"><span class="dot" id="dotFixed"></span><span id="statusFixed"></span></div>
+          <div class="stats">
+            <div><b id="wFixed">0</b><span>waiting</span></div>
+            <div><b id="sFixed">0</b><span>passed</span></div>
+            <div><b id="aFixed">–</b><span>average wait so far</span></div>
+          </div>
+        </article>
+        <article class="card">
+          <h3>Adaptive system (ours)</h3>
+          <p>Green time follows the queue. Emergency vehicles use the green strip (green corridor lane).</p>
+          <canvas class="scene" id="sceneAdaptive" aria-label="Junction with the adaptive system"></canvas>
+          <div class="status"><span class="dot" id="dotAdaptive"></span><span id="statusAdaptive"></span></div>
+          <div class="stats">
+            <div><b id="wAdaptive">0</b><span>waiting</span></div>
+            <div><b id="sAdaptive">0</b><span>passed</span></div>
+            <div><b id="aAdaptive">–</b><span>average wait so far</span></div>
+          </div>
+        </article>
+      </div>
+    </section>
 
-  <p><span class="chip" id="backendBadge" role="status"></span></p>
-</div>
+    <section class="panel">
+      <h2>3. Result</h2>
+      <div class="hint" id="resultHint">Press Start. The result appears when every vehicle has passed (or press “Skip to
+        result”).</div>
+      <div id="resultBody" hidden></div>
+    </section>
 
-<script id="engine">
-var TrafficEngine = (function () {
-  "use strict";
+    <p><span class="chip" id="backendBadge" role="status"></span></p>
+  </div>
 
-  var SEC_PER_VEHICLE = 3, YELLOW = 3, ALL_RED = 2, TRANSITION = YELLOW + ALL_RED;
-  var MIN_GREEN = 10, MAX_GREEN = 60, MAX_EMERGENCY_PER_LANE = 5, LANE_CAPACITY = 100;
-  // Green corridor lane: an emergency vehicle waits in its own lane, crosses the stop line after 3 s while every
-  // signal is red, and the junction is released 2 s later. The rest of its route is a green hold at the next
-  // junctions (not simulated), so the route length does not block THIS junction.
-  var EMERGENCY_CROSSING = SEC_PER_VEHICLE + ALL_RED;
-  var LANES = ["North", "South", "East", "West"];
-  var ENTRY = [1, 3, 8, 5];
-  var NODES = ["City Hospital", "Central Square", "Market Road", "Railway Station", "Fire Station",
-               "Bus Stand", "College Road", "Civil Lines", "Sports Complex", "Stadium Gate"];
-  var ROADS = [[0, 1, 4], [1, 2, 3], [2, 3, 5], [3, 4, 4], [0, 5, 6], [5, 6, 3], [6, 4, 7],
-               [1, 7, 2], [7, 8, 3], [8, 4, 5], [5, 9, 2], [9, 8, 4]];
-  var KINDS = {
-    ambulance: { label: "Ambulance", icon: "🚑", priority: 100, destination: 0, jsonKey: "ambulance" },
-    firetruck: { label: "Fire Truck", icon: "🚒", priority: 90, destination: 9, jsonKey: "fireTruck" },
-    police:    { label: "Police Car", icon: "🚓", priority: 70, destination: 7, jsonKey: "policeCar" }
-  };
-  var ALIASES = {
-    "car": "car", "bus": "bus", "motorbike": "bike", "motorcycle": "bike", "truck": "truck",
-    "ambulance": "ambulance", "firetruck": "firetruck", "fire_truck": "firetruck", "fire-truck": "firetruck",
-    "police": "police", "policecar": "police", "police_car": "police", "police-car": "police"
-  };
+  <script id="engine">
+    var TrafficEngine = (function () {
+      "use strict";
 
-  var ADJ = (function () {
-    var a = [], i, j;
-    for (i = 0; i < 10; i++) { a.push([]); for (j = 0; j < 10; j++) { a[i].push(0); } }
-    ROADS.forEach(function (r) { a[r[0]][r[1]] = r[2]; a[r[1]][r[0]] = r[2]; });
-    return a;
-  })();
+      var SEC_PER_VEHICLE = 3, YELLOW = 3, ALL_RED = 2, TRANSITION = YELLOW + ALL_RED;
+      var MIN_GREEN = 10, MAX_GREEN = 60, MAX_EMERGENCY_PER_LANE = 5, LANE_CAPACITY = 100;
+      // Green corridor lane: an emergency vehicle waits in its own lane, crosses the stop line after 3 s while every
+      // signal is red, and the junction is released 2 s later. The rest of its route is a green hold at the next
+      // junctions (not simulated), so the route length does not block THIS junction.
+      var EMERGENCY_CROSSING = SEC_PER_VEHICLE + ALL_RED;
+      var LANES = ["North", "South", "East", "West"];
+      var ENTRY = [1, 3, 8, 5];
+      var NODES = ["City Hospital", "Central Square", "Market Road", "Railway Station", "Fire Station",
+        "Bus Stand", "College Road", "Civil Lines", "Sports Complex", "Stadium Gate"];
+      var ROADS = [[0, 1, 4], [1, 2, 3], [2, 3, 5], [3, 4, 4], [0, 5, 6], [5, 6, 3], [6, 4, 7],
+      [1, 7, 2], [7, 8, 3], [8, 4, 5], [5, 9, 2], [9, 8, 4]];
+      var KINDS = {
+        ambulance: { label: "Ambulance", icon: "🚑", priority: 100, destination: 0, jsonKey: "ambulance" },
+        firetruck: { label: "Fire Truck", icon: "🚒", priority: 90, destination: 9, jsonKey: "fireTruck" },
+        police: { label: "Police Car", icon: "🚓", priority: 70, destination: 7, jsonKey: "policeCar" }
+      };
+      var ALIASES = {
+        "car": "car", "bus": "bus", "motorbike": "bike", "motorcycle": "bike", "truck": "truck",
+        "ambulance": "ambulance", "firetruck": "firetruck", "fire_truck": "firetruck", "fire-truck": "firetruck",
+        "police": "police", "policecar": "police", "police_car": "police", "police-car": "police"
+      };
 
-  function edgeDistance(a, b) { return ADJ[a][b]; }
+      var ADJ = (function () {
+        var a = [], i, j;
+        for (i = 0; i < 10; i++) { a.push([]); for (j = 0; j < 10; j++) { a[i].push(0); } }
+        ROADS.forEach(function (r) { a[r[0]][r[1]] = r[2]; a[r[1]][r[0]] = r[2]; });
+        return a;
+      })();
 
-  // Same format as detections.txt: "North: car bus ambulance ..."
-  function parseDetections(text) {
-    var lanes = [[], [], [], []], warnings = [];
-    String(text).split(/\r?\n/).forEach(function (raw) {
-      var line = raw.trim();
-      if (!line || line.charAt(0) === "#") { return; }
-      var m = line.match(/^([^:\s]+)\s*:?\s*(.*)$/);
-      if (!m) { return; }
-      var lane = -1;
-      LANES.forEach(function (n, i) { if (n.toLowerCase() === m[1].toLowerCase()) { lane = i; } });
-      if (lane < 0) { warnings.push("Unknown lane “" + m[1] + "” ignored."); return; }
-      var words = m[2].split(/\s+/).filter(Boolean);
-      for (var k = 0; k < words.length; k++) {
-        if (lanes[lane].length >= LANE_CAPACITY) {
-          warnings.push(LANES[lane] + " lane is over capacity (" + LANE_CAPACITY + "); extra vehicles ignored.");
-          break;
-        }
-        var token = ALIASES[words[k].toLowerCase()];
-        if (!token) { warnings.push("Unknown vehicle “" + words[k] + "” ignored."); continue; }
-        lanes[lane].push(token);
+      function edgeDistance(a, b) { return ADJ[a][b]; }
+
+      // Same format as detections.txt: "North: car bus ambulance ..."
+      function parseDetections(text) {
+        var lanes = [[], [], [], []], warnings = [];
+        String(text).split(/\r?\n/).forEach(function (raw) {
+          var line = raw.trim();
+          if (!line || line.charAt(0) === "#") { return; }
+          var m = line.match(/^([^:\s]+)\s*:?\s*(.*)$/);
+          if (!m) { return; }
+          var lane = -1;
+          LANES.forEach(function (n, i) { if (n.toLowerCase() === m[1].toLowerCase()) { lane = i; } });
+          if (lane < 0) { warnings.push("Unknown lane “" + m[1] + "” ignored."); return; }
+          var words = m[2].split(/\s+/).filter(Boolean);
+          for (var k = 0; k < words.length; k++) {
+            if (lanes[lane].length >= LANE_CAPACITY) {
+              warnings.push(LANES[lane] + " lane is over capacity (" + LANE_CAPACITY + "); extra vehicles ignored.");
+              break;
+            }
+            var token = ALIASES[words[k].toLowerCase()];
+            if (!token) { warnings.push("Unknown vehicle “" + words[k] + "” ignored."); continue; }
+            lanes[lane].push(token);
+          }
+        });
+        return { lanes: lanes, warnings: warnings };
       }
-    });
-    return { lanes: lanes, warnings: warnings };
-  }
 
-  // IDs run 1..N over North, South, East, West. At most 5 emergency vehicles per lane
-  // (the first five from the front) are treated as emergency; the rest count as cars.
-  function prepare(laneTokens, priorityOn) {
-    if (priorityOn === undefined) { priorityOn = true; }
-    var lanes = [], emergencies = [], offset = 0;
-    laneTokens.forEach(function (tokens, l) {
-      var vehicles = [], emergencyCount = 0;
-      tokens.forEach(function (tok, i) {
-        var id = offset + i + 1;
-        if (priorityOn && KINDS[tok] && emergencyCount < MAX_EMERGENCY_PER_LANE) {
-          emergencyCount++;
-          vehicles.push({ id: id, lane: l, type: tok, emergency: true });
-          emergencies.push({ id: id, lane: l, kind: tok, pos: i + 1 });
+      // IDs run 1..N over North, South, East, West. At most 5 emergency vehicles per lane
+      // (the first five from the front) are treated as emergency; the rest count as cars.
+      function prepare(laneTokens, priorityOn) {
+        if (priorityOn === undefined) { priorityOn = true; }
+        var lanes = [], emergencies = [], offset = 0;
+        laneTokens.forEach(function (tokens, l) {
+          var vehicles = [], emergencyCount = 0;
+          tokens.forEach(function (tok, i) {
+            var id = offset + i + 1;
+            if (priorityOn && KINDS[tok] && emergencyCount < MAX_EMERGENCY_PER_LANE) {
+              emergencyCount++;
+              vehicles.push({ id: id, lane: l, type: tok, emergency: true });
+              emergencies.push({ id: id, lane: l, kind: tok, pos: i + 1 });
+            } else {
+              // over the 5-per-lane cap an emergency vehicle counts as a car; with priority off it is only drawn differently
+              vehicles.push({ id: id, lane: l, type: (KINDS[tok] && priorityOn) ? "car" : tok, emergency: false });
+            }
+          });
+          offset += tokens.length;
+          lanes.push(vehicles);
+        });
+        return { lanes: lanes, emergencies: emergencies, total: offset };
+      }
+
+      // BFS: the route with the FEWEST roads (same as GreenCorridor::findShortestRoute).
+      function findRoute(src, dst) {
+        var parent = [], seen = [], queue = [src], i, head;
+        for (i = 0; i < 10; i++) { parent.push(-1); seen.push(false); }
+        seen[src] = true;
+        for (head = 0; head < queue.length; head++) {
+          var cur = queue[head];
+          if (cur === dst) { break; }
+          for (var nx = 0; nx < 10; nx++) {
+            if (ADJ[cur][nx] > 0 && !seen[nx]) { seen[nx] = true; parent[nx] = cur; queue.push(nx); }
+          }
+        }
+        if (!seen[dst]) { return null; }
+        var nodes = [], c;
+        for (c = dst; c !== -1; c = parent[c]) { nodes.push(c); }
+        nodes.reverse();
+        var distance = 0;
+        for (i = 0; i + 1 < nodes.length; i++) { distance += ADJ[nodes[i]][nodes[i + 1]]; }
+        return { nodes: nodes, distance: distance };
+      }
+
+      function greenTime(vehicles) {
+        return Math.max(MIN_GREEN, Math.min(MAX_GREEN, vehicles * SEC_PER_VEHICLE));
+      }
+
+      // strategy "fixed" | "adaptive". Returns when every vehicle leaves its lane and when it counts as served.
+      // fixedLane (fixed road only): does the fixed road ALSO have a green corridor lane? Default: no, it is a normal road.
+      function simulate(model, strategy, fixedGreen, fixedLane) {
+        var adaptive = strategy === "adaptive";
+        var laneOn = adaptive || fixedLane === true;
+        var dep = model.lanes.map(function (l) { return l.map(function () { return Infinity; }); });
+        var served = model.lanes.map(function (l) { return l.map(function () { return Infinity; }); });
+        var phases = [], corridor = [], clock = 0;
+
+        // With a green corridor lane, emergency vehicles never wait in the normal lane. Without it (a normal road)
+        // an emergency vehicle waits inside the normal queue and cannot be served directly.
+        var queue = model.lanes.map(function (lane) {
+          var idx = [];
+          lane.forEach(function (v, i) { if (!(laneOn && v.emergency)) { idx.push(i); } });
+          return idx;
+        });
+        // fixed road with a lane: they wait in it for their direction's green (no signal priority);
+        // adaptive: the priority heap dispatches them through the corridor instead
+        var emQueue = model.lanes.map(function (lane) {
+          var idx = [];
+          if (!adaptive && laneOn) { lane.forEach(function (v, i) { if (v.emergency) { idx.push(i); } }); }
+          return idx;
+        });
+        var next = [0, 0, 0, 0], emNext = [0, 0, 0, 0];
+        function count(l) { return queue[l].length - next[l]; }
+        function emCount(l) { return emQueue[l].length - emNext[l]; }
+        function remaining() { return count(0) + count(1) + count(2) + count(3) + emCount(0) + emCount(1) + emCount(2) + emCount(3); }
+
+        if (adaptive) {
+          // heap order: highest priority first, then smaller vehicle ID
+          var list = model.emergencies.slice().sort(function (a, b) {
+            return (KINDS[b.kind].priority - KINDS[a.kind].priority) || (a.id - b.id);
+          });
+          list.forEach(function (e) {
+            var r = findRoute(ENTRY[e.lane], KINDS[e.kind].destination);
+            if (!r) { return; }
+            var start = clock, cross = start + SEC_PER_VEHICLE, end = start + EMERGENCY_CROSSING;
+            corridor.push({
+              id: e.id, lane: e.lane, kind: e.kind, nodes: r.nodes, distance: r.distance,
+              start: start, cross: cross, end: end, eta: cross + r.distance
+            });
+            dep[e.lane][e.pos - 1] = cross;
+            served[e.lane][e.pos - 1] = cross;
+            clock = end;
+          });
+        }
+
+        function runPhase(dir, green, skipIfEmpty) {
+          var a = dir === 0 ? 0 : 2, b = a + 1;
+          if (skipIfEmpty && count(a) === 0 && count(b) === 0) { return; }
+          var slots = Math.floor(green / SEC_PER_VEHICLE), sv = [0, 0], em = [0, 0];
+          [a, b].forEach(function (lane, k) {
+            while (sv[k] < slots && count(lane) > 0) {
+              sv[k]++;
+              var idx = queue[lane][next[lane]++];
+              var t = clock + sv[k] * SEC_PER_VEHICLE;
+              dep[lane][idx] = t;
+              served[lane][idx] = t;
+            }
+            while (em[k] < slots && emCount(lane) > 0) {      // green corridor lane, side by side with the normal lane
+              em[k]++;
+              var ei = emQueue[lane][emNext[lane]++];
+              var te = clock + em[k] * SEC_PER_VEHICLE;
+              dep[lane][ei] = te;
+              served[lane][ei] = te;
+            }
+          });
+          phases.push({ dir: dir, start: clock, green: green, laneA: a, laneB: b, servedA: sv[0], servedB: sv[1], emA: em[0], emB: em[1] });
+          clock += green + TRANSITION;
+        }
+
+        var guard = 0;
+        if (adaptive) {
+          while (remaining() > 0 && guard < 1000) {
+            var nsGreen = greenTime(Math.max(count(0), count(1)));
+            var ewGreen = greenTime(Math.max(count(2), count(3)));
+            var first = (count(0) + count(1) >= count(2) + count(3)) ? 0 : 1;
+            var second = 1 - first;
+            runPhase(first, first === 0 ? nsGreen : ewGreen, true);
+            runPhase(second, second === 0 ? nsGreen : ewGreen, true);
+            guard++;
+          }
         } else {
-          // over the 5-per-lane cap an emergency vehicle counts as a car; with priority off it is only drawn differently
-          vehicles.push({ id: id, lane: l, type: (KINDS[tok] && priorityOn) ? "car" : tok, emergency: false });
+          while (remaining() > 0 && guard < 1000) {
+            runPhase(0, fixedGreen, false);
+            if (remaining() === 0) { break; }
+            runPhase(1, fixedGreen, false);
+            guard++;
+          }
         }
-      });
-      offset += tokens.length;
-      lanes.push(vehicles);
-    });
-    return { lanes: lanes, emergencies: emergencies, total: offset };
-  }
 
-  // BFS: the route with the FEWEST roads (same as GreenCorridor::findShortestRoute).
-  function findRoute(src, dst) {
-    var parent = [], seen = [], queue = [src], i, head;
-    for (i = 0; i < 10; i++) { parent.push(-1); seen.push(false); }
-    seen[src] = true;
-    for (head = 0; head < queue.length; head++) {
-      var cur = queue[head];
-      if (cur === dst) { break; }
-      for (var nx = 0; nx < 10; nx++) {
-        if (ADJ[cur][nx] > 0 && !seen[nx]) { seen[nx] = true; parent[nx] = cur; queue.push(nx); }
+        var end = 0;
+        served.forEach(function (l) { l.forEach(function (t) { if (isFinite(t) && t > end) { end = t; } }); });
+        return { strategy: strategy, dep: dep, served: served, phases: phases, corridor: corridor, end: end };
       }
-    }
-    if (!seen[dst]) { return null; }
-    var nodes = [], c;
-    for (c = dst; c !== -1; c = parent[c]) { nodes.push(c); }
-    nodes.reverse();
-    var distance = 0;
-    for (i = 0; i + 1 < nodes.length; i++) { distance += ADJ[nodes[i]][nodes[i + 1]]; }
-    return { nodes: nodes, distance: distance };
-  }
 
-  function greenTime(vehicles) {
-    return Math.max(MIN_GREEN, Math.min(MAX_GREEN, vehicles * SEC_PER_VEHICLE));
-  }
-
-  // strategy "fixed" | "adaptive". Returns when every vehicle leaves its lane and when it counts as served.
-  // fixedLane (fixed road only): does the fixed road ALSO have a green corridor lane? Default: no, it is a normal road.
-  function simulate(model, strategy, fixedGreen, fixedLane) {
-    var adaptive = strategy === "adaptive";
-    var laneOn = adaptive || fixedLane === true;
-    var dep = model.lanes.map(function (l) { return l.map(function () { return Infinity; }); });
-    var served = model.lanes.map(function (l) { return l.map(function () { return Infinity; }); });
-    var phases = [], corridor = [], clock = 0;
-
-    // With a green corridor lane, emergency vehicles never wait in the normal lane. Without it (a normal road)
-    // an emergency vehicle waits inside the normal queue and cannot be served directly.
-    var queue = model.lanes.map(function (lane) {
-      var idx = [];
-      lane.forEach(function (v, i) { if (!(laneOn && v.emergency)) { idx.push(i); } });
-      return idx;
-    });
-    // fixed road with a lane: they wait in it for their direction's green (no signal priority);
-    // adaptive: the priority heap dispatches them through the corridor instead
-    var emQueue = model.lanes.map(function (lane) {
-      var idx = [];
-      if (!adaptive && laneOn) { lane.forEach(function (v, i) { if (v.emergency) { idx.push(i); } }); }
-      return idx;
-    });
-    var next = [0, 0, 0, 0], emNext = [0, 0, 0, 0];
-    function count(l) { return queue[l].length - next[l]; }
-    function emCount(l) { return emQueue[l].length - emNext[l]; }
-    function remaining() { return count(0) + count(1) + count(2) + count(3) + emCount(0) + emCount(1) + emCount(2) + emCount(3); }
-
-    if (adaptive) {
-      // heap order: highest priority first, then smaller vehicle ID
-      var list = model.emergencies.slice().sort(function (a, b) {
-        return (KINDS[b.kind].priority - KINDS[a.kind].priority) || (a.id - b.id);
-      });
-      list.forEach(function (e) {
-        var r = findRoute(ENTRY[e.lane], KINDS[e.kind].destination);
-        if (!r) { return; }
-        var start = clock, cross = start + SEC_PER_VEHICLE, end = start + EMERGENCY_CROSSING;
-        corridor.push({ id: e.id, lane: e.lane, kind: e.kind, nodes: r.nodes, distance: r.distance,
-                        start: start, cross: cross, end: end, eta: cross + r.distance });
-        dep[e.lane][e.pos - 1] = cross;
-        served[e.lane][e.pos - 1] = cross;
-        clock = end;
-      });
-    }
-
-    function runPhase(dir, green, skipIfEmpty) {
-      var a = dir === 0 ? 0 : 2, b = a + 1;
-      if (skipIfEmpty && count(a) === 0 && count(b) === 0) { return; }
-      var slots = Math.floor(green / SEC_PER_VEHICLE), sv = [0, 0], em = [0, 0];
-      [a, b].forEach(function (lane, k) {
-        while (sv[k] < slots && count(lane) > 0) {
-          sv[k]++;
-          var idx = queue[lane][next[lane]++];
-          var t = clock + sv[k] * SEC_PER_VEHICLE;
-          dep[lane][idx] = t;
-          served[lane][idx] = t;
+      // Signal state at time t.
+      function lightsAt(res, t) {
+        var i;
+        for (i = 0; i < res.corridor.length; i++) {
+          var c = res.corridor[i];
+          if (t >= c.start && t < c.end) { return { ns: "R", ew: "R", mode: "corridor", corridor: c, phase: null, remaining: 0 }; }
         }
-        while (em[k] < slots && emCount(lane) > 0) {      // green corridor lane, side by side with the normal lane
-          em[k]++;
-          var ei = emQueue[lane][emNext[lane]++];
-          var te = clock + em[k] * SEC_PER_VEHICLE;
-          dep[lane][ei] = te;
-          served[lane][ei] = te;
+        for (i = 0; i < res.phases.length; i++) {
+          var p = res.phases[i], g1 = p.start + p.green, y1 = g1 + YELLOW, r1 = y1 + ALL_RED;
+          if (t >= p.start && t < g1) {
+            return { ns: p.dir === 0 ? "G" : "R", ew: p.dir === 1 ? "G" : "R", mode: "green", corridor: null, phase: p, remaining: g1 - t };
+          }
+          if (t >= g1 && t < y1) {
+            return { ns: p.dir === 0 ? "Y" : "R", ew: p.dir === 1 ? "Y" : "R", mode: "yellow", corridor: null, phase: p, remaining: y1 - t };
+          }
+          if (t >= y1 && t < r1) { return { ns: "R", ew: "R", mode: "allred", corridor: null, phase: p, remaining: r1 - t }; }
         }
-      });
-      phases.push({ dir: dir, start: clock, green: green, laneA: a, laneB: b, servedA: sv[0], servedB: sv[1], emA: em[0], emB: em[1] });
-      clock += green + TRANSITION;
-    }
-
-    var guard = 0;
-    if (adaptive) {
-      while (remaining() > 0 && guard < 1000) {
-        var nsGreen = greenTime(Math.max(count(0), count(1)));
-        var ewGreen = greenTime(Math.max(count(2), count(3)));
-        var first = (count(0) + count(1) >= count(2) + count(3)) ? 0 : 1;
-        var second = 1 - first;
-        runPhase(first, first === 0 ? nsGreen : ewGreen, true);
-        runPhase(second, second === 0 ? nsGreen : ewGreen, true);
-        guard++;
+        return { ns: "R", ew: "R", mode: t >= res.end ? "done" : "red", corridor: null, phase: null, remaining: 0 };
       }
-    } else {
-      while (remaining() > 0 && guard < 1000) {
-        runPhase(0, fixedGreen, false);
-        if (remaining() === 0) { break; }
-        runPhase(1, fixedGreen, false);
-        guard++;
+
+      function emptyTally() {
+        var byType = {};
+        Object.keys(KINDS).forEach(function (k) { byType[k] = { served: 0, totalWait: 0 }; });
+        return { served: 0, totalWait: 0, maxWait: 0, emergencyServed: 0, emergencyWait: 0, byType: byType };
       }
-    }
 
-    var end = 0;
-    served.forEach(function (l) { l.forEach(function (t) { if (isFinite(t) && t > end) { end = t; } }); });
-    return { strategy: strategy, dep: dep, served: served, phases: phases, corridor: corridor, end: end };
-  }
-
-  // Signal state at time t.
-  function lightsAt(res, t) {
-    var i;
-    for (i = 0; i < res.corridor.length; i++) {
-      var c = res.corridor[i];
-      if (t >= c.start && t < c.end) { return { ns: "R", ew: "R", mode: "corridor", corridor: c, phase: null, remaining: 0 }; }
-    }
-    for (i = 0; i < res.phases.length; i++) {
-      var p = res.phases[i], g1 = p.start + p.green, y1 = g1 + YELLOW, r1 = y1 + ALL_RED;
-      if (t >= p.start && t < g1) {
-        return { ns: p.dir === 0 ? "G" : "R", ew: p.dir === 1 ? "G" : "R", mode: "green", corridor: null, phase: p, remaining: g1 - t };
-      }
-      if (t >= g1 && t < y1) {
-        return { ns: p.dir === 0 ? "Y" : "R", ew: p.dir === 1 ? "Y" : "R", mode: "yellow", corridor: null, phase: p, remaining: y1 - t };
-      }
-      if (t >= y1 && t < r1) { return { ns: "R", ew: "R", mode: "allred", corridor: null, phase: p, remaining: r1 - t }; }
-    }
-    return { ns: "R", ew: "R", mode: t >= res.end ? "done" : "red", corridor: null, phase: null, remaining: 0 };
-  }
-
-  function emptyTally() {
-    var byType = {};
-    Object.keys(KINDS).forEach(function (k) { byType[k] = { served: 0, totalWait: 0 }; });
-    return { served: 0, totalWait: 0, maxWait: 0, emergencyServed: 0, emergencyWait: 0, byType: byType };
-  }
-
-  function tally(res, model, upTo) {
-    var m = emptyTally();
-    model.lanes.forEach(function (lane, l) {
-      lane.forEach(function (v, i) {
-        var w = res.served[l][i];
-        if (!isFinite(w) || w > upTo) { return; }
-        m.served++; m.totalWait += w;
-        if (w > m.maxWait) { m.maxWait = w; }
-        if (v.emergency) {
-          m.emergencyServed++; m.emergencyWait += w;
-          m.byType[v.type].served++; m.byType[v.type].totalWait += w;
-        }
-      });
-    });
-    return m;
-  }
-
-  // Wait = time served, because every vehicle is waiting from t = 0.
-  function progressAt(res, model, t) { return tally(res, model, t); }
-
-  function metrics(res, model) {
-    var m = tally(res, model, Infinity);
-    m.phases = res.phases.length; m.greenGiven = 0; m.greenWasted = 0;
-    res.phases.forEach(function (p) {
-      m.greenGiven += p.green;
-      m.greenWasted += p.green - Math.max(p.servedA, p.servedB, p.emA || 0, p.emB || 0) * SEC_PER_VEHICLE;
-    });
-    m.avgWait = m.served > 0 ? m.totalWait / m.served : 0;
-    m.avgEmergencyWait = m.emergencyServed > 0 ? m.emergencyWait / m.emergencyServed : 0;
-    Object.keys(m.byType).forEach(function (k) {
-      var b = m.byType[k];
-      b.avgWait = b.served > 0 ? b.totalWait / b.served : 0;
-    });
-    return m;
-  }
-
-  return {
-    LANES: LANES, KINDS: KINDS, NODES: NODES, ROADS: ROADS, ENTRY: ENTRY,
-    SEC_PER_VEHICLE: SEC_PER_VEHICLE, TRANSITION: TRANSITION, EMERGENCY_CROSSING: EMERGENCY_CROSSING,
-    parseDetections: parseDetections, prepare: prepare, findRoute: findRoute, edgeDistance: edgeDistance,
-    simulate: simulate, lightsAt: lightsAt, progressAt: progressAt, metrics: metrics
-  };
-})();
-</script>
-
-<script id="ui">
-(function () {
-  "use strict";
-  var E = TrafficEngine;
-  function $(id) { return document.getElementById(id); }
-  function clamp(x, lo, hi) { return Math.max(lo, Math.min(hi, x)); }
-
-  var model, results = {}, finals = {}, totalEnd = 1, fixedLaneOn = false;
-  var simT = 0, playing = false, speed = 5, lastFrame = 0, fixedGreen = 30;
-
-  // ---------------------------------------------------------------- geometry
-  var C = 320, STOP = 62, SLOT0 = STOP + 12, SLOT_GAP = 17, MAX_SLOTS = 13, FADE = 0.8, EXIT_D = -340;   // STOP = distance of the stop lines from the centre
-  var ARMS = [
-    { pos: function (d) { return [C + 20, C - d]; }, out: [1, 0],  inward: [-1, 0], vertical: true },   // North
-    { pos: function (d) { return [C - 20, C + d]; }, out: [-1, 0], inward: [1, 0],  vertical: true },   // South
-    { pos: function (d) { return [C + d, C + 20]; }, out: [0, 1],  inward: [0, -1], vertical: false },  // East
-    { pos: function (d) { return [C - d, C - 20]; }, out: [0, -1], inward: [0, 1],  vertical: false }   // West
-  ];
-  var LIGHT_POS = [[C + 84, C - 70], [C - 84, C + 70], [C + 90, C + 84], [C - 90, C - 84]];
-  var LABEL_POS = [[C + 20, 16], [C - 20, 624], [596, C + 88], [44, C - 88]];
-  var EM_OFF = 29;   // the green corridor lane sits this far outside the normal incoming lane
-  var priorityOn = true;
-  var PALETTE = ["#d94f4f", "#4f8bd9", "#e8e8ea", "#3fb27f", "#9a6bd1", "#f28c38", "#2c3e50", "#c7b13a"];
-  var SIZE = { car: [11, 15], bike: [6, 10], bus: [13, 16], truck: [13, 16], ambulance: [13, 16], firetruck: [14, 16], police: [11, 15] };
-
-  // ---------------------------------------------------------------- helpers
-  function fit(canvas, aspect) {
-    var dpr = Math.min(2, window.devicePixelRatio || 1);
-    var cw = canvas.clientWidth || 640;
-    var w = Math.round(cw * dpr), h = Math.round(w * aspect);
-    if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
-    return w;
-  }
-  function rr(ctx, x, y, w, h, r) {
-    ctx.beginPath(); ctx.moveTo(x + r, y);
-    ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
-    ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
-  }
-  function ease(x) { return x * x * (3 - 2 * x); }
-  function fmt(x) { return (Math.round(x * 10) / 10).toString(); }
-  function dirName(d) { return d === 0 ? "North–South" : "East–West"; }
-  function css(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
-
-  // ---------------------------------------------------------------- scene
-  function drawRoads(ctx) {
-    ctx.fillStyle = "#2f5a2f"; ctx.fillRect(0, 0, 640, 640);
-    [[14, 14], [C + 68, 14], [14, C + 68], [C + 68, C + 68]].forEach(function (p) {
-      ctx.fillStyle = "#3a6a3a"; rr(ctx, p[0], p[1], C - 82, C - 82, 14); ctx.fill();
-    });
-    ctx.fillStyle = "#34383f";
-    ctx.fillRect(0, C - 40, 640, 80); ctx.fillRect(C - 40, 0, 80, 640);
-    // road edges
-    ctx.strokeStyle = "rgba(255,255,255,.55)"; ctx.lineWidth = 2; ctx.setLineDash([]);
-    [[0, C - 40, C - 40, C - 40], [C + 40, C - 40, 640, C - 40], [0, C + 40, C - 40, C + 40], [C + 40, C + 40, 640, C + 40],
-     [C - 40, 0, C - 40, C - 40], [C - 40, C + 40, C - 40, 640], [C + 40, 0, C + 40, C - 40], [C + 40, C + 40, C + 40, 640]
-    ].forEach(function (l) { ctx.beginPath(); ctx.moveTo(l[0], l[1]); ctx.lineTo(l[2], l[3]); ctx.stroke(); });
-    // centre lines
-    ctx.strokeStyle = "#e8d36a"; ctx.setLineDash([10, 8]);
-    [[0, C, C - 40, C], [C + 40, C, 640, C], [C, 0, C, C - 40], [C, C + 40, C, 640]].forEach(function (l) {
-      ctx.beginPath(); ctx.moveTo(l[0], l[1]); ctx.lineTo(l[2], l[3]); ctx.stroke();
-    });
-    ctx.setLineDash([]);
-    // stop lines (across each incoming lane)
-    ctx.strokeStyle = "#fff"; ctx.lineWidth = 4;
-    [[C, C - STOP, C + 40, C - STOP], [C - 40, C + STOP, C, C + STOP], [C + STOP, C, C + STOP, C + 40], [C - STOP, C - 40, C - STOP, C]].forEach(function (l) {
-      ctx.beginPath(); ctx.moveTo(l[0], l[1]); ctx.lineTo(l[2], l[3]); ctx.stroke();
-    });
-  }
-
-  // The green corridor lane: a narrow lane along the outer edge of every road, for emergency vehicles only. It runs
-  // straight through the junction and out on the far side, so they never enter the normal lanes.
-  function drawEmergencyLanes(ctx) {
-    // [x, y, width, height, horizontal, label x, label y, has stop line]
-    var strips = [
-      [C + 40, 0, 18, C - STOP, false, C + 49, 150, true],           // North arm, incoming (east edge)
-      [C - 58, C + STOP, 18, C - STOP, false, C - 49, 490, true],    // South arm, incoming (west edge)
-      [C + STOP, C + 40, C - STOP, 18, true, 490, C + 49, true],     // East arm, incoming (south edge)
-      [0, C - 58, C - STOP, 18, true, 150, C - 49, true],            // West arm, incoming (north edge)
-      [C - 58, 0, 18, C - STOP, false, C - 49, 150, false],          // North arm, exit (from the South arm)
-      [C + 40, C + STOP, 18, C - STOP, false, C + 49, 490, false],   // South arm, exit (from the North arm)
-      [C + STOP, C - 58, C - STOP, 18, true, 490, C - 49, false],    // East arm, exit (from the West arm)
-      [0, C + 40, C - STOP, 18, true, 150, C + 49, false]            // West arm, exit (from the East arm)
-    ];
-    // straight through the junction, between the stop lines
-    ctx.fillStyle = "rgba(39,153,90,.55)";
-    ctx.fillRect(C + 40, C - STOP, 18, 2 * STOP); ctx.fillRect(C - 58, C - STOP, 18, 2 * STOP);
-    ctx.fillRect(C - STOP, C + 40, 2 * STOP, 18); ctx.fillRect(C - STOP, C - 58, 2 * STOP, 18);
-    strips.forEach(function (st) {
-      ctx.fillStyle = "#27995a"; ctx.fillRect(st[0], st[1], st[2], st[3]);
-      ctx.strokeStyle = "rgba(255,255,255,.85)"; ctx.lineWidth = 2; ctx.setLineDash([6, 6]);
-      ctx.beginPath();
-      if (st[4]) { var ey = st[1] > C ? st[1] + st[3] : st[1]; ctx.moveTo(st[0], ey); ctx.lineTo(st[0] + st[2], ey); }
-      else { var ex = st[0] > C ? st[0] + st[2] : st[0]; ctx.moveTo(ex, st[1]); ctx.lineTo(ex, st[1] + st[3]); }
-      ctx.stroke(); ctx.setLineDash([]);
-      if (st[7]) {      // stop line at the junction end of the incoming lane
-        ctx.fillStyle = "#fff";
-        if (st[4]) { ctx.fillRect(st[0] === 0 ? st[2] - 3 : st[0], st[1], 3, st[3]); } else { ctx.fillRect(st[0], st[1] === 0 ? st[3] - 3 : st[1], st[2], 3); }
-      }
-      ctx.save(); ctx.translate(st[5], st[6]);
-      if (!st[4]) { ctx.rotate(-Math.PI / 2); }
-      ctx.fillStyle = "#fff"; ctx.font = "bold 9px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-      ctx.fillText("GREEN CORRIDOR LANE", 0, 0.5); ctx.restore();
-    });
-  }
-
-  function drawLight(ctx, cx, cy, state) {
-    ctx.fillStyle = "#14161a"; rr(ctx, cx - 9, cy - 24, 18, 48, 5); ctx.fill();
-    [["R", "#ff3b30", "#4a1a18", -14], ["Y", "#ffcc00", "#4a3f10", 0], ["G", "#34c759", "#143b1f", 14]].forEach(function (l) {
-      var lit = state === l[0];
-      ctx.save();
-      if (lit) { ctx.shadowColor = l[1]; ctx.shadowBlur = 12; }
-      ctx.fillStyle = lit ? l[1] : l[2];
-      ctx.beginPath(); ctx.arc(cx, cy + l[3], 5, 0, Math.PI * 2); ctx.fill();
-      ctx.restore();
-    });
-  }
-
-  function drawVehicle(ctx, v, x, y, a, rt, tag) {
-    var sz = SIZE[v.type], vertical = ARMS[a].vertical;
-    var W = vertical ? sz[0] : sz[1], H = vertical ? sz[1] : sz[0];
-    ctx.save(); ctx.translate(x, y);
-    var body = "#999";
-    if (v.type === "car") { body = PALETTE[v.id % PALETTE.length]; }
-    else if (v.type === "bus") { body = "#f0a23b"; }
-    else if (v.type === "truck") { body = "#8d939c"; }
-    else if (v.type === "bike") { body = "#24262b"; }
-    else if (v.type === "ambulance") { body = "#fafafa"; }
-    else if (v.type === "firetruck") { body = "#d6362b"; }
-    else if (v.type === "police") { body = "#2d5dcf"; }
-    ctx.fillStyle = body; rr(ctx, -W / 2, -H / 2, W, H, 3); ctx.fill();
-    ctx.lineWidth = 1; ctx.strokeStyle = "rgba(0,0,0,.55)"; ctx.stroke();
-    if (v.type === "ambulance") {
-      ctx.fillStyle = "#e0262b"; ctx.fillRect(-1.5, -4, 3, 8); ctx.fillRect(-4, -1.5, 8, 3);
-    } else if (v.type === "firetruck") {
-      ctx.fillStyle = "#fff";
-      if (vertical) { ctx.fillRect(-1, -H / 2 + 2, 2, H - 4); } else { ctx.fillRect(-W / 2 + 2, -1, W - 4, 2); }
-    } else if (v.type === "police") {
-      ctx.fillStyle = "#fff";
-      if (vertical) { ctx.fillRect(-W / 2, -1.5, W, 3); } else { ctx.fillRect(-1.5, -H / 2, 3, H); }
-    } else if (v.type === "bike") {
-      ctx.fillStyle = "#e8c07a"; ctx.beginPath(); ctx.arc(0, 0, 2, 0, Math.PI * 2); ctx.fill();
-    } else {
-      ctx.fillStyle = "rgba(255,255,255,.28)";
-      if (vertical) { rr(ctx, -W / 2 + 2, -H / 2 + 4, W - 4, H - 8, 2); } else { rr(ctx, -W / 2 + 4, -H / 2 + 2, W - 8, H - 4, 2); }
-      ctx.fill();
-    }
-    if (v.emergency) {
-      var on = Math.floor(rt * 5) % 2 === 0;
-      var c1 = on ? "255,59,48" : "47,123,255", c2 = on ? "47,123,255" : "255,59,48";
-      var p1 = vertical ? [0, -H / 2 + 2] : [-W / 2 + 2, 0], p2 = vertical ? [0, H / 2 - 2] : [W / 2 - 2, 0];
-      ctx.fillStyle = "rgba(" + c1 + ",.35)"; ctx.beginPath(); ctx.arc(p1[0], p1[1], 8, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = "rgba(" + c2 + ",.35)"; ctx.beginPath(); ctx.arc(p2[0], p2[1], 8, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = "rgb(" + c1 + ")"; ctx.beginPath(); ctx.arc(p1[0], p1[1], 2.6, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = "rgb(" + c2 + ")"; ctx.beginPath(); ctx.arc(p2[0], p2[1], 2.6, 0, Math.PI * 2); ctx.fill();
-    }
-    ctx.restore();
-    if (tag && v.emergency) {
-      var off = tag === true ? 20 : tag;
-      ctx.font = '14px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif';
-      ctx.textAlign = "center"; ctx.textBaseline = "middle";
-      ctx.fillText(E.KINDS[v.type].icon, x + ARMS[a].out[0] * off, y + ARMS[a].out[1] * off);
-    }
-  }
-
-  function pill(ctx, text, cx, cy, fill, color) {
-    ctx.font = "bold 12px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    var w = ctx.measureText(text).width + 16;
-    ctx.fillStyle = fill; rr(ctx, cx - w / 2, cy - 11, w, 22, 11); ctx.fill();
-    ctx.fillStyle = color; ctx.fillText(text, cx, cy + 1);
-  }
-
-  function drawLane(ctx, a, res, rt) {
-    var arm = ARMS[a], vehicles = model.lanes[a], dep = res.dep[a];
-    var lane = priorityOn && (res.strategy === "adaptive" || fixedLaneOn);      // this road has the green corridor lane
-    var normal = [], emerg = [], k;
-    vehicles.forEach(function (v, j) { if (lane && v.emergency) { emerg.push(j); } else { normal.push(j); } });
-    emerg.sort(function (x, y) { return dep[x] === dep[y] ? 0 : (dep[x] < dep[y] ? -1 : 1); });   // dispatch order
-
-    var advance = 0, queued = 0, hidden = 0, moving = [], n;
-    for (n = 0; n < normal.length; n++) {
-      var j = normal[n], dj = dep[j];
-      if (simT < dj) {
-        queued++;
-        var slot = n - advance;
-        if (slot < MAX_SLOTS) {
-          var p = arm.pos(SLOT0 + SLOT_GAP * slot);
-          drawVehicle(ctx, vehicles[j], p[0], p[1], a, rt, true);
-        } else { hidden++; }
-      } else if (dj !== Infinity && simT - dj < 9) { moving.push(n); }
-      advance += clamp((simT - dj) / FADE, 0, 1);
-    }
-    moving.forEach(function (n) {
-      var j = normal[n], tau = simT - dep[j], adv = 0;
-      for (k = 0; k < n; k++) { adv += clamp((dep[j] - dep[normal[k]]) / FADE, 0, 1); }
-      var d = SLOT0 + SLOT_GAP * (n - adv) - 70 * tau;
-      if (d < EXIT_D) { return; }
-      var q = arm.pos(d);
-      drawVehicle(ctx, vehicles[j], q[0], q[1], a, rt, true);
-    });
-
-    // green corridor lane: emergency vehicles wait here, then cross the junction and merge back into the road
-    var eAdvance = 0, eMoving = [], i;
-    for (i = 0; i < emerg.length; i++) {
-      var je = emerg[i], de = dep[je];
-      if (simT < de) {
-        queued++;
-        var eslot = i - eAdvance;
-        if (eslot < MAX_SLOTS) {
-          var pe = arm.pos(SLOT0 + SLOT_GAP * eslot);
-          drawVehicle(ctx, vehicles[je], pe[0] + arm.out[0] * EM_OFF, pe[1] + arm.out[1] * EM_OFF, a, rt, 17);
-        }
-      } else if (de !== Infinity && simT - de < 9) { eMoving.push(i); }
-      eAdvance += clamp((simT - de) / FADE, 0, 1);
-    }
-    eMoving.forEach(function (i) {
-      var je = emerg[i], tau = simT - dep[je], adv = 0;
-      for (k = 0; k < i; k++) { adv += clamp((dep[je] - dep[emerg[k]]) / FADE, 0, 1); }
-      var d = SLOT0 + SLOT_GAP * (i - adv) - 100 * tau;
-      if (d < EXIT_D) { return; }
-      var q = arm.pos(d);       // stays on the green corridor lane through the junction and out the other side
-      drawVehicle(ctx, vehicles[je], q[0] + arm.out[0] * EM_OFF, q[1] + arm.out[1] * EM_OFF, a, rt, 17);
-    });
-
-    if (hidden > 0) {
-      var hp = arm.pos(SLOT0 + SLOT_GAP * MAX_SLOTS);
-      ctx.fillStyle = "#fff"; ctx.font = "bold 12px system-ui, sans-serif";
-      ctx.textAlign = "center"; ctx.textBaseline = "middle";
-      ctx.fillText("+" + hidden, hp[0], hp[1]);
-    }
-    pill(ctx, E.LANES[a] + " · " + queued, LABEL_POS[a][0], LABEL_POS[a][1], "rgba(0,0,0,.62)", "#fff");
-  }
-
-  function drawScene(canvas, res, rt) {
-    var w = fit(canvas, 1), ctx = canvas.getContext("2d"), s = w / 640;
-    ctx.setTransform(s, 0, 0, s, 0, 0);
-    drawRoads(ctx);
-    if (priorityOn && (res.strategy === "adaptive" || fixedLaneOn)) { drawEmergencyLanes(ctx); }
-    var L = E.lightsAt(res, simT);
-    for (var a = 0; a < 4; a++) { drawLane(ctx, a, res, rt); }
-    for (a = 0; a < 4; a++) { drawLight(ctx, LIGHT_POS[a][0], LIGHT_POS[a][1], a < 2 ? L.ns : L.ew); }
-    if (L.mode === "corridor") {
-      var k = E.KINDS[L.corridor.kind];
-      ctx.lineWidth = 8; ctx.strokeStyle = "rgba(217,83,79," + (0.35 + 0.25 * Math.sin(rt * 6)) + ")";
-      ctx.strokeRect(4, 4, 632, 632);
-      pill(ctx, "GREEN CORRIDOR · " + k.icon + " " + k.label + " #" + L.corridor.id, 320, 48, "#d9534f", "#fff");
-    }
-  }
-
-
-  // ---------------------------------------------------------------- traffic from the input boxes
-  // Vehicle types are only for the picture; the timing depends only on how many vehicles wait in each lane.
-  var PATTERN = ["car", "car", "bike", "car", "truck", "car", "bus", "car", "bike", "car"];
-  function laneTokens(count, lane, emergency) {
-    var out = [];
-    for (var i = 0; i < count; i++) { out.push(PATTERN[(i + lane * 3) % PATTERN.length]); }
-    if (emergency) { out.splice(Math.floor(count / 2), 0, emergency); }      // the emergency vehicle is in the middle of the queue
-    return out;
-  }
-  function readLanes() {
-    var lanes = [];
-    for (var i = 0; i < 4; i++) {
-      var n = clamp(parseInt($("n" + i).value, 10) || 0, 0, 99);
-      lanes.push(laneTokens(n, i, $("e" + i).value));
-    }
-    return lanes;
-  }
-  function lanesToText(lanes) {
-    return lanes.map(function (tokens, i) {
-      return E.LANES[i] + ": " + tokens.map(function (t) { return t === "bike" ? "motorbike" : t; }).join(" ");
-    }).join("\n") + "\n";
-  }
-
-  var EXAMPLES = {
-    uneven:    { n: [35, 35, 10, 10], e: ["", "", "", ""] },
-    oneHeavy:  { n: [40, 8, 8, 8],    e: ["", "", "", ""] },
-    empty:     { n: [0, 0, 30, 30],   e: ["", "", "", ""] },
-    balanced:  { n: [20, 20, 20, 20], e: ["", "", "", ""] },
-    light:     { n: [6, 6, 6, 6],     e: ["", "", "", ""] },
-    emergency: { n: [11, 7, 14, 6],   e: ["ambulance", "police", "firetruck", ""] }
-  };
-
-  // ---------------------------------------------------------------- cards and result
-  function updateCard(prefix, res) {
-    var L = E.lightsAt(res, simT), cls = "R", text = "All signals red";
-    if (L.mode === "corridor") {
-      var k = E.KINDS[L.corridor.kind];
-      text = "Emergency vehicle passing: " + k.icon + " " + k.label + ". All signals red.";
-    } else if (L.mode === "green") { cls = "G"; text = dirName(L.phase.dir) + " green · " + Math.ceil(L.remaining) + " s left"; }
-    else if (L.mode === "yellow") { cls = "Y"; text = dirName(L.phase.dir) + " yellow"; }
-    else if (L.mode === "done") { cls = "D"; text = "Finished"; }
-    var pr = E.progressAt(res, model, simT);
-    if (model.total > 0 && pr.served === model.total) { cls = "D"; text = "All vehicles have passed ✓"; }
-    $("dot" + prefix).className = "dot " + cls;
-    $("status" + prefix).textContent = text;
-    $("w" + prefix).textContent = String(model.total - pr.served);
-    $("s" + prefix).textContent = String(pr.served);
-    $("a" + prefix).textContent = pr.served ? fmt(pr.totalWait / pr.served) + " s" : "–";
-  }
-
-  function row(label, f, a) {
-    var pct = f > 0 ? (f - a) / f * 100 : 0, same = Math.abs(pct) < 0.05;
-    var note = same ? "same" : Math.abs(pct).toFixed(1) + "% " + (pct > 0 ? "lower" : "higher");
-    return '<div class="rrow"><div class="rlabel">' + label + '</div><div class="rvals"><span>Fixed <b>' + fmt(f) +
-           ' s</b></span><span class="arrow">→</span><span>Adaptive <b>' + fmt(a) + ' s</b></span><span class="rnote ' +
-           (same ? "" : (pct > 0 ? "good" : "bad")) + '">' + note + "</span></div></div>";
-  }
-
-  function updateResult() {
-    var done = model.total > 0 && simT >= totalEnd - 0.0001;
-    var body = $("resultBody"), hint = $("resultHint");
-    if (model.total === 0) { body.hidden = true; hint.hidden = false; hint.textContent = "Enter some vehicles to run the simulation."; return; }
-    if (!done) { body.hidden = true; hint.hidden = false; hint.textContent = "Press Start. The result appears when every vehicle has passed (or press “Skip to result”)."; return; }
-    var f = finals.fixed, a = finals.adaptive;
-    var html = row("Average waiting time per vehicle", f.avgWait, a.avgWait) + row("Time until every vehicle has passed", f.maxWait, a.maxWait);
-    if (f.emergencyServed > 0) { html += row("Waiting time of the emergency vehicle(s)", f.avgEmergencyWait, a.avgEmergencyWait); }
-    if (body.getAttribute("data-html") !== html) { body.innerHTML = html; body.setAttribute("data-html", html); }
-    body.hidden = false; hint.hidden = true;
-  }
-
-  // ---------------------------------------------------------------- C++ backend check
-  // When the page is opened through server.py, the same traffic is also run by the real C++ program and the numbers are compared.
-  var backendRun = 0, backendTimer = 0;
-  function setBadge(kind, text, title) {
-    var b = $("backendBadge");
-    b.className = "chip" + (kind ? " " + kind : "");
-    b.textContent = text;
-    b.title = title || "";
-  }
-  function checkBackend(text) {
-    if (location.protocol === "file:") {
-      setBadge("", "Using the page’s own copy of the rules. Run server.py to check it against the C++ backend.");
-      return;
-    }
-    var run = ++backendRun;
-    setBadge("", "Checking with the C++ backend…");
-    fetch("/api/run", { method: "POST", headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ text: text, fixedGreen: fixedGreen, fixedLane: false }) })
-      .then(function (r) { return r.json(); })
-      .then(function (d) {
-        if (run !== backendRun) { return; }
-        if (!d.ok) { setBadge("bad", "C++ backend error: " + (d.error || "unknown"), d.error || ""); return; }
-        var fields = ["served", "avgWait", "maxWait", "emergencyServed", "avgEmergencyWait", "phases", "greenGiven", "greenWasted"], diffs = [];
-        ["fixed", "adaptive"].forEach(function (k) {
-          fields.forEach(function (f) {
-            if (Math.abs(d.comparison[k][f] - finals[k][f]) >= 0.006) {
-              diffs.push(k + "." + f + ": C++ " + d.comparison[k][f] + ", page " + (Math.round(finals[k][f] * 100) / 100));
+      function tally(res, model, upTo) {
+        var m = emptyTally();
+        model.lanes.forEach(function (lane, l) {
+          lane.forEach(function (v, i) {
+            var w = res.served[l][i];
+            if (!isFinite(w) || w > upTo) { return; }
+            m.served++; m.totalWait += w;
+            if (w > m.maxWait) { m.maxWait = w; }
+            if (v.emergency) {
+              m.emergencyServed++; m.emergencyWait += w;
+              m.byType[v.type].served++; m.byType[v.type].totalWait += w;
             }
           });
         });
-        if (diffs.length) { setBadge("bad", "C++ backend and page differ: " + diffs.slice(0, 3).join("; "), diffs.join("\n")); }
-        else { setBadge("ok", "✓ Verified with the real C++ backend: every number matches", "Python (server.py) ran the C++ program and compared its report with this page."); }
-      })
-      .catch(function () {
-        if (run === backendRun) { setBadge("", "C++ backend not reachable: the page is using its own copy of the rules. Start server.py."); }
+        return m;
+      }
+
+      // Wait = time served, because every vehicle is waiting from t = 0.
+      function progressAt(res, model, t) { return tally(res, model, t); }
+
+      function metrics(res, model) {
+        var m = tally(res, model, Infinity);
+        m.phases = res.phases.length; m.greenGiven = 0; m.greenWasted = 0;
+        res.phases.forEach(function (p) {
+          m.greenGiven += p.green;
+          m.greenWasted += p.green - Math.max(p.servedA, p.servedB, p.emA || 0, p.emB || 0) * SEC_PER_VEHICLE;
+        });
+        m.avgWait = m.served > 0 ? m.totalWait / m.served : 0;
+        m.avgEmergencyWait = m.emergencyServed > 0 ? m.emergencyWait / m.emergencyServed : 0;
+        Object.keys(m.byType).forEach(function (k) {
+          var b = m.byType[k];
+          b.avgWait = b.served > 0 ? b.totalWait / b.served : 0;
+        });
+        return m;
+      }
+
+      return {
+        LANES: LANES, KINDS: KINDS, NODES: NODES, ROADS: ROADS, ENTRY: ENTRY,
+        SEC_PER_VEHICLE: SEC_PER_VEHICLE, TRANSITION: TRANSITION, EMERGENCY_CROSSING: EMERGENCY_CROSSING,
+        parseDetections: parseDetections, prepare: prepare, findRoute: findRoute, edgeDistance: edgeDistance,
+        simulate: simulate, lightsAt: lightsAt, progressAt: progressAt, metrics: metrics
+      };
+    })();
+  </script>
+
+  <script id="ui">
+    (function () {
+      "use strict";
+      var E = TrafficEngine;
+      function $(id) { return document.getElementById(id); }
+      function clamp(x, lo, hi) { return Math.max(lo, Math.min(hi, x)); }
+
+      var model, results = {}, finals = {}, totalEnd = 1, fixedLaneOn = false;
+      var simT = 0, playing = false, speed = 5, lastFrame = 0, fixedGreen = 30;
+
+      // ---------------------------------------------------------------- geometry
+      var C = 320, STOP = 62, SLOT0 = STOP + 12, SLOT_GAP = 17, MAX_SLOTS = 13, FADE = 0.8, EXIT_D = -340;   // STOP = distance of the stop lines from the centre
+      var ARMS = [
+        { pos: function (d) { return [C + 20, C - d]; }, out: [1, 0], inward: [-1, 0], vertical: true },   // North
+        { pos: function (d) { return [C - 20, C + d]; }, out: [-1, 0], inward: [1, 0], vertical: true },   // South
+        { pos: function (d) { return [C + d, C + 20]; }, out: [0, 1], inward: [0, -1], vertical: false },  // East
+        { pos: function (d) { return [C - d, C - 20]; }, out: [0, -1], inward: [0, 1], vertical: false }   // West
+      ];
+      var LIGHT_POS = [[C + 84, C - 70], [C - 84, C + 70], [C + 90, C + 84], [C - 90, C - 84]];
+      var LABEL_POS = [[C + 20, 16], [C - 20, 624], [596, C + 88], [44, C - 88]];
+      var EM_OFF = 29;   // the green corridor lane sits this far outside the normal incoming lane
+      var priorityOn = true;
+      var PALETTE = ["#d94f4f", "#4f8bd9", "#e8e8ea", "#3fb27f", "#9a6bd1", "#f28c38", "#2c3e50", "#c7b13a"];
+      var SIZE = { car: [11, 15], bike: [6, 10], bus: [13, 16], truck: [13, 16], ambulance: [13, 16], firetruck: [14, 16], police: [11, 15] };
+
+      // ---------------------------------------------------------------- helpers
+      function fit(canvas, aspect) {
+        var dpr = Math.min(2, window.devicePixelRatio || 1);
+        var cw = canvas.clientWidth || 640;
+        var w = Math.round(cw * dpr), h = Math.round(w * aspect);
+        if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+        return w;
+      }
+      function rr(ctx, x, y, w, h, r) {
+        ctx.beginPath(); ctx.moveTo(x + r, y);
+        ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+        ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+      }
+      function ease(x) { return x * x * (3 - 2 * x); }
+      function fmt(x) { return (Math.round(x * 10) / 10).toString(); }
+      function dirName(d) { return d === 0 ? "North–South" : "East–West"; }
+      function css(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+
+      // ---------------------------------------------------------------- scene
+      function drawRoads(ctx) {
+        ctx.fillStyle = "#2f5a2f"; ctx.fillRect(0, 0, 640, 640);
+        [[14, 14], [C + 68, 14], [14, C + 68], [C + 68, C + 68]].forEach(function (p) {
+          ctx.fillStyle = "#3a6a3a"; rr(ctx, p[0], p[1], C - 82, C - 82, 14); ctx.fill();
+        });
+        ctx.fillStyle = "#34383f";
+        ctx.fillRect(0, C - 40, 640, 80); ctx.fillRect(C - 40, 0, 80, 640);
+        // road edges
+        ctx.strokeStyle = "rgba(255,255,255,.55)"; ctx.lineWidth = 2; ctx.setLineDash([]);
+        [[0, C - 40, C - 40, C - 40], [C + 40, C - 40, 640, C - 40], [0, C + 40, C - 40, C + 40], [C + 40, C + 40, 640, C + 40],
+        [C - 40, 0, C - 40, C - 40], [C - 40, C + 40, C - 40, 640], [C + 40, 0, C + 40, C - 40], [C + 40, C + 40, C + 40, 640]
+        ].forEach(function (l) { ctx.beginPath(); ctx.moveTo(l[0], l[1]); ctx.lineTo(l[2], l[3]); ctx.stroke(); });
+        // centre lines
+        ctx.strokeStyle = "#e8d36a"; ctx.setLineDash([10, 8]);
+        [[0, C, C - 40, C], [C + 40, C, 640, C], [C, 0, C, C - 40], [C, C + 40, C, 640]].forEach(function (l) {
+          ctx.beginPath(); ctx.moveTo(l[0], l[1]); ctx.lineTo(l[2], l[3]); ctx.stroke();
+        });
+        ctx.setLineDash([]);
+        // stop lines (across each incoming lane)
+        ctx.strokeStyle = "#fff"; ctx.lineWidth = 4;
+        [[C, C - STOP, C + 40, C - STOP], [C - 40, C + STOP, C, C + STOP], [C + STOP, C, C + STOP, C + 40], [C - STOP, C - 40, C - STOP, C]].forEach(function (l) {
+          ctx.beginPath(); ctx.moveTo(l[0], l[1]); ctx.lineTo(l[2], l[3]); ctx.stroke();
+        });
+      }
+
+      // The green corridor lane: a narrow lane along the outer edge of every road, for emergency vehicles only. It runs
+      // straight through the junction and out on the far side, so they never enter the normal lanes.
+      function drawEmergencyLanes(ctx) {
+        // [x, y, width, height, horizontal, label x, label y, has stop line]
+        var strips = [
+          [C + 40, 0, 18, C - STOP, false, C + 49, 150, true],           // North arm, incoming (east edge)
+          [C - 58, C + STOP, 18, C - STOP, false, C - 49, 490, true],    // South arm, incoming (west edge)
+          [C + STOP, C + 40, C - STOP, 18, true, 490, C + 49, true],     // East arm, incoming (south edge)
+          [0, C - 58, C - STOP, 18, true, 150, C - 49, true],            // West arm, incoming (north edge)
+          [C - 58, 0, 18, C - STOP, false, C - 49, 150, false],          // North arm, exit (from the South arm)
+          [C + 40, C + STOP, 18, C - STOP, false, C + 49, 490, false],   // South arm, exit (from the North arm)
+          [C + STOP, C - 58, C - STOP, 18, true, 490, C - 49, false],    // East arm, exit (from the West arm)
+          [0, C + 40, C - STOP, 18, true, 150, C + 49, false]            // West arm, exit (from the East arm)
+        ];
+        // straight through the junction, between the stop lines
+        ctx.fillStyle = "rgba(39,153,90,.55)";
+        ctx.fillRect(C + 40, C - STOP, 18, 2 * STOP); ctx.fillRect(C - 58, C - STOP, 18, 2 * STOP);
+        ctx.fillRect(C - STOP, C + 40, 2 * STOP, 18); ctx.fillRect(C - STOP, C - 58, 2 * STOP, 18);
+        strips.forEach(function (st) {
+          ctx.fillStyle = "#27995a"; ctx.fillRect(st[0], st[1], st[2], st[3]);
+          ctx.strokeStyle = "rgba(255,255,255,.85)"; ctx.lineWidth = 2; ctx.setLineDash([6, 6]);
+          ctx.beginPath();
+          if (st[4]) { var ey = st[1] > C ? st[1] + st[3] : st[1]; ctx.moveTo(st[0], ey); ctx.lineTo(st[0] + st[2], ey); }
+          else { var ex = st[0] > C ? st[0] + st[2] : st[0]; ctx.moveTo(ex, st[1]); ctx.lineTo(ex, st[1] + st[3]); }
+          ctx.stroke(); ctx.setLineDash([]);
+          if (st[7]) {      // stop line at the junction end of the incoming lane
+            ctx.fillStyle = "#fff";
+            if (st[4]) { ctx.fillRect(st[0] === 0 ? st[2] - 3 : st[0], st[1], 3, st[3]); } else { ctx.fillRect(st[0], st[1] === 0 ? st[3] - 3 : st[1], st[2], 3); }
+          }
+          ctx.save(); ctx.translate(st[5], st[6]);
+          if (!st[4]) { ctx.rotate(-Math.PI / 2); }
+          ctx.fillStyle = "#fff"; ctx.font = "bold 9px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+          ctx.fillText("GREEN CORRIDOR LANE", 0, 0.5); ctx.restore();
+        });
+      }
+
+      function drawLight(ctx, cx, cy, state) {
+        ctx.fillStyle = "#14161a"; rr(ctx, cx - 9, cy - 24, 18, 48, 5); ctx.fill();
+        [["R", "#ff3b30", "#4a1a18", -14], ["Y", "#ffcc00", "#4a3f10", 0], ["G", "#34c759", "#143b1f", 14]].forEach(function (l) {
+          var lit = state === l[0];
+          ctx.save();
+          if (lit) { ctx.shadowColor = l[1]; ctx.shadowBlur = 12; }
+          ctx.fillStyle = lit ? l[1] : l[2];
+          ctx.beginPath(); ctx.arc(cx, cy + l[3], 5, 0, Math.PI * 2); ctx.fill();
+          ctx.restore();
+        });
+      }
+
+      function drawVehicle(ctx, v, x, y, a, rt, tag) {
+        var sz = SIZE[v.type] || SIZE.car, vertical = ARMS[a].vertical;
+        var W = vertical ? sz[0] : sz[1], H = vertical ? sz[1] : sz[0];
+        ctx.save(); ctx.translate(x, y);
+        var body = "#999";
+        if (v.type === "car") { body = PALETTE[v.id % PALETTE.length]; }
+        else if (v.type === "bus") { body = "#f0a23b"; }
+        else if (v.type === "truck") { body = "#8d939c"; }
+        else if (v.type === "bike") { body = "#24262b"; }
+        else if (v.type === "ambulance") { body = "#fafafa"; }
+        else if (v.type === "firetruck") { body = "#d6362b"; }
+        else if (v.type === "police") { body = "#2d5dcf"; }
+        ctx.fillStyle = body; rr(ctx, -W / 2, -H / 2, W, H, 3); ctx.fill();
+        ctx.lineWidth = 1; ctx.strokeStyle = "rgba(0,0,0,.55)"; ctx.stroke();
+        if (v.type === "ambulance") {
+          ctx.fillStyle = "#e0262b"; ctx.fillRect(-1.5, -4, 3, 8); ctx.fillRect(-4, -1.5, 8, 3);
+        } else if (v.type === "firetruck") {
+          ctx.fillStyle = "#fff";
+          if (vertical) { ctx.fillRect(-1, -H / 2 + 2, 2, H - 4); } else { ctx.fillRect(-W / 2 + 2, -1, W - 4, 2); }
+        } else if (v.type === "police") {
+          ctx.fillStyle = "#fff";
+          if (vertical) { ctx.fillRect(-W / 2, -1.5, W, 3); } else { ctx.fillRect(-1.5, -H / 2, 3, H); }
+        } else if (v.type === "bike") {
+          ctx.fillStyle = "#e8c07a"; ctx.beginPath(); ctx.arc(0, 0, 2, 0, Math.PI * 2); ctx.fill();
+        } else {
+          ctx.fillStyle = "rgba(255,255,255,.28)";
+          if (vertical) { rr(ctx, -W / 2 + 2, -H / 2 + 4, W - 4, H - 8, 2); } else { rr(ctx, -W / 2 + 4, -H / 2 + 2, W - 8, H - 4, 2); }
+          ctx.fill();
+        }
+        if (v.emergency) {
+          var on = Math.floor(rt * 5) % 2 === 0;
+          var c1 = on ? "255,59,48" : "47,123,255", c2 = on ? "47,123,255" : "255,59,48";
+          var p1 = vertical ? [0, -H / 2 + 2] : [-W / 2 + 2, 0], p2 = vertical ? [0, H / 2 - 2] : [W / 2 - 2, 0];
+          ctx.fillStyle = "rgba(" + c1 + ",.35)"; ctx.beginPath(); ctx.arc(p1[0], p1[1], 8, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = "rgba(" + c2 + ",.35)"; ctx.beginPath(); ctx.arc(p2[0], p2[1], 8, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = "rgb(" + c1 + ")"; ctx.beginPath(); ctx.arc(p1[0], p1[1], 2.6, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = "rgb(" + c2 + ")"; ctx.beginPath(); ctx.arc(p2[0], p2[1], 2.6, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.restore();
+        if (tag && v.emergency) {
+          var off = tag === true ? 20 : tag;
+          ctx.font = '14px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif';
+          ctx.textAlign = "center"; ctx.textBaseline = "middle";
+          ctx.fillText(E.KINDS[v.type].icon, x + ARMS[a].out[0] * off, y + ARMS[a].out[1] * off);
+        }
+      }
+
+      function pill(ctx, text, cx, cy, fill, color) {
+        ctx.font = "bold 12px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        var w = ctx.measureText(text).width + 16;
+        ctx.fillStyle = fill; rr(ctx, cx - w / 2, cy - 11, w, 22, 11); ctx.fill();
+        ctx.fillStyle = color; ctx.fillText(text, cx, cy + 1);
+      }
+
+      function drawLane(ctx, a, res, rt) {
+        var arm = ARMS[a], vehicles = model.lanes[a], dep = res.dep[a];
+        var lane = priorityOn && (res.strategy === "adaptive" || fixedLaneOn);      // this road has the green corridor lane
+        var normal = [], emerg = [], k;
+        vehicles.forEach(function (v, j) { if (lane && v.emergency) { emerg.push(j); } else { normal.push(j); } });
+        emerg.sort(function (x, y) { return dep[x] === dep[y] ? 0 : (dep[x] < dep[y] ? -1 : 1); });   // dispatch order
+
+        var advance = 0, queued = 0, hidden = 0, moving = [], n;
+        for (n = 0; n < normal.length; n++) {
+          var j = normal[n], dj = dep[j];
+          if (simT < dj) {
+            queued++;
+            var slot = n - advance;
+            if (slot < MAX_SLOTS) {
+              var p = arm.pos(SLOT0 + SLOT_GAP * slot);
+              drawVehicle(ctx, vehicles[j], p[0], p[1], a, rt, true);
+            } else { hidden++; }
+          } else if (dj !== Infinity && simT - dj < 9) { moving.push(n); }
+          advance += clamp((simT - dj) / FADE, 0, 1);
+        }
+        moving.forEach(function (n) {
+          var j = normal[n], tau = simT - dep[j], adv = 0;
+          for (k = 0; k < n; k++) { adv += clamp((dep[j] - dep[normal[k]]) / FADE, 0, 1); }
+          var d = SLOT0 + SLOT_GAP * (n - adv) - 70 * tau;
+          if (d < EXIT_D) { return; }
+          var q = arm.pos(d);
+          drawVehicle(ctx, vehicles[j], q[0], q[1], a, rt, true);
+        });
+
+        // green corridor lane: emergency vehicles wait here, then cross the junction and merge back into the road
+        var eAdvance = 0, eMoving = [], i;
+        for (i = 0; i < emerg.length; i++) {
+          var je = emerg[i], de = dep[je];
+          if (simT < de) {
+            queued++;
+            var eslot = i - eAdvance;
+            if (eslot < MAX_SLOTS) {
+              var pe = arm.pos(SLOT0 + SLOT_GAP * eslot);
+              drawVehicle(ctx, vehicles[je], pe[0] + arm.out[0] * EM_OFF, pe[1] + arm.out[1] * EM_OFF, a, rt, 17);
+            }
+          } else if (de !== Infinity && simT - de < 9) { eMoving.push(i); }
+          eAdvance += clamp((simT - de) / FADE, 0, 1);
+        }
+        eMoving.forEach(function (i) {
+          var je = emerg[i], tau = simT - dep[je], adv = 0;
+          for (k = 0; k < i; k++) { adv += clamp((dep[je] - dep[emerg[k]]) / FADE, 0, 1); }
+          var d = SLOT0 + SLOT_GAP * (i - adv) - 100 * tau;
+          if (d < EXIT_D) { return; }
+          var q = arm.pos(d);       // stays on the green corridor lane through the junction and out the other side
+          drawVehicle(ctx, vehicles[je], q[0] + arm.out[0] * EM_OFF, q[1] + arm.out[1] * EM_OFF, a, rt, 17);
+        });
+
+        if (hidden > 0) {
+          var hp = arm.pos(SLOT0 + SLOT_GAP * MAX_SLOTS);
+          ctx.fillStyle = "#fff"; ctx.font = "bold 12px system-ui, sans-serif";
+          ctx.textAlign = "center"; ctx.textBaseline = "middle";
+          ctx.fillText("+" + hidden, hp[0], hp[1]);
+        }
+        pill(ctx, E.LANES[a] + " · " + queued, LABEL_POS[a][0], LABEL_POS[a][1], "rgba(0,0,0,.62)", "#fff");
+      }
+
+      function drawScene(canvas, res, rt) {
+        var w = fit(canvas, 1), ctx = canvas.getContext("2d"), s = w / 640;
+        ctx.setTransform(s, 0, 0, s, 0, 0);
+        drawRoads(ctx);
+        if (priorityOn && (res.strategy === "adaptive" || fixedLaneOn)) { drawEmergencyLanes(ctx); }
+        var L = E.lightsAt(res, simT);
+        for (var a = 0; a < 4; a++) { drawLane(ctx, a, res, rt); }
+        for (a = 0; a < 4; a++) { drawLight(ctx, LIGHT_POS[a][0], LIGHT_POS[a][1], a < 2 ? L.ns : L.ew); }
+        if (L.mode === "corridor") {
+          var k = E.KINDS[L.corridor.kind];
+          ctx.lineWidth = 8; ctx.strokeStyle = "rgba(217,83,79," + (0.35 + 0.25 * Math.sin(rt * 6)) + ")";
+          ctx.strokeRect(4, 4, 632, 632);
+          pill(ctx, "GREEN CORRIDOR · " + k.icon + " " + k.label + " #" + L.corridor.id, 320, 48, "#d9534f", "#fff");
+        }
+      }
+
+
+      // ---------------------------------------------------------------- traffic from the input boxes
+      // Vehicle types are only for the picture; the timing depends only on how many vehicles wait in each lane.
+      var PATTERN = ["car", "car", "bike", "car", "truck", "car", "bus", "car", "bike", "car"];
+      function laneTokens(count, lane, emergency) {
+        var out = [];
+        for (var i = 0; i < count; i++) { out.push(PATTERN[(i + lane * 3) % PATTERN.length]); }
+        if (emergency) { out.splice(Math.floor(count / 2), 0, emergency); }      // the emergency vehicle is in the middle of the queue
+        return out;
+      }
+      // When an image is imported, preserve the detected vehicle types for the simulation.
+      var importedLaneTokens = null;
+      function readLanes() {
+        if (importedLaneTokens) {
+          return importedLaneTokens.map(function (lane) { return lane.slice(); });
+        }
+        var lanes = [];
+        for (var i = 0; i < 4; i++) {
+          var n = clamp(parseInt($("n" + i).value, 10) || 0, 0, 99);
+          lanes.push(laneTokens(n, i, $("e" + i).value));
+        }
+        return lanes;
+      }
+      function lanesToText(lanes) {
+        return lanes.map(function (tokens, i) {
+          return E.LANES[i] + ": " + tokens.map(function (t) { return t === "bike" ? "motorbike" : t; }).join(" ");
+        }).join("\n") + "\n";
+      }
+
+      var EXAMPLES = {
+        uneven: { n: [35, 35, 10, 10], e: ["", "", "", ""] },
+        oneHeavy: { n: [40, 8, 8, 8], e: ["", "", "", ""] },
+        empty: { n: [0, 0, 30, 30], e: ["", "", "", ""] },
+        balanced: { n: [20, 20, 20, 20], e: ["", "", "", ""] },
+        light: { n: [6, 6, 6, 6], e: ["", "", "", ""] },
+        emergency: { n: [11, 7, 14, 6], e: ["ambulance", "police", "firetruck", ""] }
+      };
+
+      // ---------------------------------------------------------------- cards and result
+      function updateCard(prefix, res) {
+        var L = E.lightsAt(res, simT), cls = "R", text = "All signals red";
+        if (L.mode === "corridor") {
+          var k = E.KINDS[L.corridor.kind];
+          text = "Emergency vehicle passing: " + k.icon + " " + k.label + ". All signals red.";
+        } else if (L.mode === "green") { cls = "G"; text = dirName(L.phase.dir) + " green · " + Math.ceil(L.remaining) + " s left"; }
+        else if (L.mode === "yellow") { cls = "Y"; text = dirName(L.phase.dir) + " yellow"; }
+        else if (L.mode === "done") { cls = "D"; text = "Finished"; }
+        var pr = E.progressAt(res, model, simT);
+        if (model.total > 0 && pr.served === model.total) { cls = "D"; text = "All vehicles have passed ✓"; }
+        $("dot" + prefix).className = "dot " + cls;
+        $("status" + prefix).textContent = text;
+        $("w" + prefix).textContent = String(model.total - pr.served);
+        $("s" + prefix).textContent = String(pr.served);
+        $("a" + prefix).textContent = pr.served ? fmt(pr.totalWait / pr.served) + " s" : "–";
+      }
+
+      function row(label, f, a) {
+        var pct = f > 0 ? (f - a) / f * 100 : 0, same = Math.abs(pct) < 0.05;
+        var note = same ? "same" : Math.abs(pct).toFixed(1) + "% " + (pct > 0 ? "lower" : "higher");
+        return '<div class="rrow"><div class="rlabel">' + label + '</div><div class="rvals"><span>Fixed <b>' + fmt(f) +
+          ' s</b></span><span class="arrow">→</span><span>Adaptive <b>' + fmt(a) + ' s</b></span><span class="rnote ' +
+          (same ? "" : (pct > 0 ? "good" : "bad")) + '">' + note + "</span></div></div>";
+      }
+
+      function updateResult() {
+        var done = model.total > 0 && simT >= totalEnd - 0.0001;
+        var body = $("resultBody"), hint = $("resultHint");
+        if (model.total === 0) { body.hidden = true; hint.hidden = false; hint.textContent = "Enter some vehicles to run the simulation."; return; }
+        if (!done) { body.hidden = true; hint.hidden = false; hint.textContent = "Press Start. The result appears when every vehicle has passed (or press “Skip to result”)."; return; }
+        var f = finals.fixed, a = finals.adaptive;
+        var html = row("Average waiting time per vehicle", f.avgWait, a.avgWait) + row("Time until every vehicle has passed", f.maxWait, a.maxWait);
+        if (f.emergencyServed > 0) { html += row("Waiting time of the emergency vehicle(s)", f.avgEmergencyWait, a.avgEmergencyWait); }
+        if (body.getAttribute("data-html") !== html) { body.innerHTML = html; body.setAttribute("data-html", html); }
+        body.hidden = false; hint.hidden = true;
+      }
+
+      // ---------------------------------------------------------------- C++ backend check
+      // When the page is opened through server.py, the same traffic is also run by the real C++ program and the numbers are compared.
+      var backendRun = 0, backendTimer = 0;
+      function setBadge(kind, text, title) {
+        var b = $("backendBadge");
+        b.className = "chip" + (kind ? " " + kind : "");
+        b.textContent = text;
+        b.title = title || "";
+      }
+      function checkBackend(text) {
+        if (location.protocol === "file:") {
+          setBadge("", "Using the page’s own copy of the rules. Run server.py to check it against the C++ backend.");
+          return;
+        }
+        var run = ++backendRun;
+        setBadge("", "Checking with the C++ backend…");
+        fetch("/api/run", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: text, fixedGreen: fixedGreen, fixedLane: false })
+        })
+          .then(function (r) { return r.json(); })
+          .then(function (d) {
+            if (run !== backendRun) { return; }
+            if (!d.ok) { setBadge("bad", "C++ backend error: " + (d.error || "unknown"), d.error || ""); return; }
+            var fields = ["served", "avgWait", "maxWait", "emergencyServed", "avgEmergencyWait", "phases", "greenGiven", "greenWasted"], diffs = [];
+            ["fixed", "adaptive"].forEach(function (k) {
+              fields.forEach(function (f) {
+                if (Math.abs(d.comparison[k][f] - finals[k][f]) >= 0.006) {
+                  diffs.push(k + "." + f + ": C++ " + d.comparison[k][f] + ", page " + (Math.round(finals[k][f] * 100) / 100));
+                }
+              });
+            });
+            if (diffs.length) { setBadge("bad", "C++ backend and page differ: " + diffs.slice(0, 3).join("; "), diffs.join("\n")); }
+            else { setBadge("ok", "✓ Verified with the real C++ backend: every number matches", "Python (server.py) ran the C++ program and compared its report with this page."); }
+          })
+          .catch(function () {
+            if (run === backendRun) { setBadge("", "C++ backend not reachable: the page is using its own copy of the rules. Start server.py."); }
+          });
+      }
+
+      // ---------------------------------------------------------------- main loop
+      function render(rt) {
+        $("clock").textContent = fmt(simT) + " s";
+        setPauseLabel();
+        drawScene($("sceneFixed"), results.fixed, rt);
+        drawScene($("sceneAdaptive"), results.adaptive, rt);
+        updateCard("Fixed", results.fixed);
+        updateCard("Adaptive", results.adaptive);
+        updateResult();
+      }
+
+      function setPauseLabel() {
+        var label = playing ? "⏸ Pause" : (simT >= totalEnd && simT > 0 ? "↻ Replay" : "▶ Resume");
+        var b = $("btnPause");
+        if (b.textContent !== label) { b.textContent = label; }
+        b.disabled = !playing && simT === 0;
+      }
+
+      function frame(now) {
+        if (playing) {
+          var dt = lastFrame ? (now - lastFrame) / 1000 : 0;
+          simT = Math.min(totalEnd, simT + dt * speed);
+          if (simT >= totalEnd) { playing = false; setPauseLabel(); }
+        }
+        lastFrame = now;
+        render(now / 1000);
+        window.requestAnimationFrame(frame);
+      }
+
+      function apply(startPlaying) {
+        var lanes = readLanes();
+        fixedGreen = clamp(parseInt($("fixedGreen").value, 10) || 30, 10, 60);
+        model = E.prepare(lanes, true);
+        results.fixed = E.simulate(model, "fixed", fixedGreen, false);
+        results.adaptive = E.simulate(model, "adaptive", fixedGreen);
+        finals.fixed = E.metrics(results.fixed, model);
+        finals.adaptive = E.metrics(results.adaptive, model);
+        var lastEta = 0;
+        results.adaptive.corridor.forEach(function (c) { if (c.eta > lastEta) { lastEta = c.eta; } });
+        totalEnd = Math.max(1, results.fixed.end, results.adaptive.end, lastEta);
+        simT = 0; playing = startPlaying === true; lastFrame = 0; setPauseLabel();
+        var text = lanesToText(lanes);
+        window.clearTimeout(backendTimer);
+        backendTimer = window.setTimeout(function () { checkBackend(text); }, 300);
+        render(performance.now() / 1000);
+      }
+
+      // ---------------------------------------------------------------- wiring
+      var applyTimer = 0;
+      function changed() { window.clearTimeout(applyTimer); applyTimer = window.setTimeout(function () { apply(false); }, 200); }
+      for (var i = 0; i < 4; i++) {
+        $("n" + i).addEventListener("input", function () { $("examples").value = ""; changed(); });
+        $("e" + i).addEventListener("change", function () { $("examples").value = ""; changed(); });
+      }
+      $("fixedGreen").addEventListener("input", changed);
+      $("examples").addEventListener("change", function () {
+        var ex = EXAMPLES[$("examples").value];
+        if (!ex) { return; }
+        for (var k = 0; k < 4; k++) { $("n" + k).value = ex.n[k]; $("e" + k).value = ex.e[k]; }
+        apply(false);
       });
-  }
+      $("btnStart").addEventListener("click", function () { window.clearTimeout(applyTimer); apply(true); });
+      $("btnPause").addEventListener("click", function () {
+        if (!playing && simT >= totalEnd) { simT = 0; }
+        playing = !playing; lastFrame = 0; setPauseLabel();
+      });
+      $("btnSkip").addEventListener("click", function () { simT = totalEnd; playing = false; setPauseLabel(); });
+      $("speed").addEventListener("change", function () { speed = Number($("speed").value); });
 
-  // ---------------------------------------------------------------- main loop
-  function render(rt) {
-    $("clock").textContent = fmt(simT) + " s";
-    setPauseLabel();
-    drawScene($("sceneFixed"), results.fixed, rt);
-    drawScene($("sceneAdaptive"), results.adaptive, rt);
-    updateCard("Fixed", results.fixed);
-    updateCard("Adaptive", results.adaptive);
-    updateResult();
-  }
 
-  function setPauseLabel() {
-    var label = playing ? "⏸ Pause" : (simT >= totalEnd && simT > 0 ? "↻ Replay" : "▶ Resume");
-    var b = $("btnPause");
-    if (b.textContent !== label) { b.textContent = label; }
-    b.disabled = !playing && simT === 0;
-  }
+      // ---------------------------------------------------------------- image detection and lane import
+      function setDetectionStatus(message, isError) {
+        var el = $("detectStatus");
+        el.textContent = message;
+        el.style.color = isError ? "var(--bad)" : "var(--muted)";
+      }
 
-  function frame(now) {
-    if (playing) {
-      var dt = lastFrame ? (now - lastFrame) / 1000 : 0;
-      simT = Math.min(totalEnd, simT + dt * speed);
-      if (simT >= totalEnd) { playing = false; setPauseLabel(); }
-    }
-    lastFrame = now;
-    render(now / 1000);
-    window.requestAnimationFrame(frame);
-  }
+      $("btnDetectImage").addEventListener("click", function () {
+        var input = $("trafficImage");
+        var file = input.files && input.files[0];
+        if (!file) {
+          setDetectionStatus("Choose an intersection image first.", true);
+          return;
+        }
+        if (!/^image\/(png|jpeg|webp)$/.test(file.type)) {
+          setDetectionStatus("Please choose a PNG, JPEG or WEBP image.", true);
+          return;
+        }
+        if (file.size > 12 * 1024 * 1024) {
+          setDetectionStatus("Image is too large. Maximum size is 12 MB.", true);
+          return;
+        }
 
-  function apply(startPlaying) {
-    var lanes = readLanes();
-    fixedGreen = clamp(parseInt($("fixedGreen").value, 10) || 30, 10, 60);
-    model = E.prepare(lanes, true);
-    results.fixed = E.simulate(model, "fixed", fixedGreen, false);
-    results.adaptive = E.simulate(model, "adaptive", fixedGreen);
-    finals.fixed = E.metrics(results.fixed, model);
-    finals.adaptive = E.metrics(results.adaptive, model);
-    var lastEta = 0;
-    results.adaptive.corridor.forEach(function (c) { if (c.eta > lastEta) { lastEta = c.eta; } });
-    totalEnd = Math.max(1, results.fixed.end, results.adaptive.end, lastEta);
-    simT = 0; playing = startPlaying === true; lastFrame = 0; setPauseLabel();
-    var text = lanesToText(lanes);
-    window.clearTimeout(backendTimer);
-    backendTimer = window.setTimeout(function () { checkBackend(text); }, 300);
-    render(performance.now() / 1000);
-  }
+        $("btnDetectImage").disabled = true;
+        setDetectionStatus("Running YOLO detection and C++ analysis…", false);
+        var reader = new FileReader();
+        reader.onload = function () {
+          var dataUrl = String(reader.result || "");
+          var base64 = dataUrl.split(",")[1] || "";
+          fetch("/api/detect", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ filename: file.name, image: base64 })
+          })
+            .then(function (response) {
+              return response.json().then(function (data) {
+                if (!response.ok || !data.ok) {
+                  throw new Error(data.error || ("HTTP " + response.status));
+                }
+                return data;
+              });
+            })
+            .then(function (data) {
+              // Normalize detector labels to the exact vehicle keys used by the canvas SIZE table.
+              // In particular, YOLO/backend use "motorbike" while the drawing code uses "bike".
+              var TYPE_MAP = {
+                car: "car", bus: "bus", truck: "truck",
+                bike: "bike", motorbike: "bike", motorcycle: "bike",
+                ambulance: "ambulance",
+                firetruck: "firetruck", fire_truck: "firetruck", "fire-truck": "firetruck",
+                police: "police", policecar: "police", police_car: "police", "police-car": "police"
+              };
+              if (!Array.isArray(data.lane_tokens) || data.lane_tokens.length !== 4) {
+                throw new Error("Detector returned an invalid four-lane vehicle list.");
+              }
+              importedLaneTokens = data.lane_tokens.map(function (lane) {
+                return (Array.isArray(lane) ? lane : []).map(function (type) {
+                  var key = String(type).toLowerCase();
+                  return TYPE_MAP[key] || "car";
+                });
+              });
+              for (var i = 0; i < 4; i++) {
+                $("n" + i).value = importedLaneTokens[i].length;
+                $("e" + i).value = "";
+              }
+              $("examples").value = "";
+              apply(false);
+              var counts = data.lane_counts;
+              $("detectionSummary").textContent =
+                "Detected " + data.total_detected + " vehicles. " +
+                "North: " + counts.North + " · South: " + counts.South +
+                " · East: " + counts.East + " · West: " + counts.West +
+                " · Unassigned: " + data.unassigned_count +
+                ". C++ backend analysis completed.";
+              $("detectionPreview").src = "/api/detection-image?run=" + encodeURIComponent(data.run_id);
+              $("detectionPreview").style.display = "block";
+              setDetectionStatus("Detection complete. Lane inputs populated; press Start to run the simulation.", false);
+            })
+            .catch(function (error) {
+              setDetectionStatus("Detection failed: " + error.message, true);
+            })
+            .finally(function () {
+              $("btnDetectImage").disabled = false;
+            });
+        };
+        reader.onerror = function () {
+          setDetectionStatus("Could not read the selected image.", true);
+          $("btnDetectImage").disabled = false;
+        };
+        reader.readAsDataURL(file);
+      });
 
-  // ---------------------------------------------------------------- wiring
-  var applyTimer = 0;
-  function changed() { window.clearTimeout(applyTimer); applyTimer = window.setTimeout(function () { apply(false); }, 200); }
-  for (var i = 0; i < 4; i++) {
-    $("n" + i).addEventListener("input", function () { $("examples").value = ""; changed(); });
-    $("e" + i).addEventListener("change", function () { $("examples").value = ""; changed(); });
-  }
-  $("fixedGreen").addEventListener("input", changed);
-  $("examples").addEventListener("change", function () {
-    var ex = EXAMPLES[$("examples").value];
-    if (!ex) { return; }
-    for (var k = 0; k < 4; k++) { $("n" + k).value = ex.n[k]; $("e" + k).value = ex.e[k]; }
-    apply(false);
-  });
-  $("btnStart").addEventListener("click", function () { window.clearTimeout(applyTimer); apply(true); });
-  $("btnPause").addEventListener("click", function () {
-    if (!playing && simT >= totalEnd) { simT = 0; }
-    playing = !playing; lastFrame = 0; setPauseLabel();
-  });
-  $("btnSkip").addEventListener("click", function () { simT = totalEnd; playing = false; setPauseLabel(); });
-  $("speed").addEventListener("change", function () { speed = Number($("speed").value); });
+      // Manual edits switch back to the original manual-input behaviour.
+      for (var manualIndex = 0; manualIndex < 4; manualIndex++) {
+        $("n" + manualIndex).addEventListener("input", function () {
+          importedLaneTokens = null;
+        });
+        $("e" + manualIndex).addEventListener("change", function () {
+          importedLaneTokens = null;
+        });
+      }
 
-  // small hook used only by the automatic tests
-  window.TrafficSim = {
-    apply: apply, seek: function (t) { simT = clamp(t, 0, totalEnd); render(performance.now() / 1000); },
-    state: function () { return { t: simT, end: totalEnd, playing: playing, finals: finals }; }
-  };
+      // small hook used only by the automatic tests
+      window.TrafficSim = {
+        apply: apply, seek: function (t) { simT = clamp(t, 0, totalEnd); render(performance.now() / 1000); },
+        state: function () { return { t: simT, end: totalEnd, playing: playing, finals: finals }; }
+      };
 
-  $("examples").value = "uneven";
-  apply(false);
-  window.requestAnimationFrame(frame);
-})();
-</script>
+      $("examples").value = "uneven";
+      apply(false);
+      window.requestAnimationFrame(frame);
+    })();
+  </script>
 </body>
+
 </html>
