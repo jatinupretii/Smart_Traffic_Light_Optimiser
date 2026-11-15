@@ -1,0 +1,6 @@
+# Sample output of the vision step (vehicles listed from the stop line backwards)
+# Emergency types: ambulance, firetruck, police
+North: car bus car ambulance motorbike car truck car motorbike car car bus
+South: motorbike car police truck car motorbike car car
+East: bus car firetruck car car motorbike truck car car car bus car car car motorbike
+West: car motorbike car car truck car

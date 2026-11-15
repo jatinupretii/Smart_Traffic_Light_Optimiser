@@ -1,3 +1,10 @@
+traffic_backend
+traffic_backend.exe
 *.exe
 *.o
+__pycache__/
+*.pyc
+.venv/
+work/
+*.pt
 .vscode/
