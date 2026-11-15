@@ -1,5 +1,5 @@
-//Smart Traffic Light Optimiser//
-//Vision input: python yolo_counter.py --source video.mp4  ->  detections.txt  ->  ./traffic [file]
+// Smart Traffic Light Optimiser//
+//  Vehicle input: detections.txt -> traffic simulation
 
 #include <iostream>
 #include <iomanip>
@@ -23,31 +23,44 @@ const int LANE_CAPACITY = 100;
 const int MAX_EMERGENCIES = 100;
 const int MAX_INTERSECTIONS = 10;
 
-// Written by yolo_counter.py (YOLOv8); can be changed from the command line.
-const char* visionFileName = "detections.txt";
+// Text input file; can be changed from the command line.
+const char *inputFileName = "detections.txt";
 
 template <typename T>
-void swapValues(T& a, T& b) { T temp = a; a = b; b = temp; }
+void swapValues(T &a, T &b)
+{
+    T temp = a;
+    a = b;
+    b = temp;
+}
 
-void printHeader(const char* title) {
+void printHeader(const char *title)
+{
     cout << "\n============================================================\n";
     cout << "  " << title << '\n';
     cout << "============================================================\n";
 }
 
 // Swallows all console text (used by batch mode so only the JSON report is printed).
-class NullBuffer : public streambuf {
+class NullBuffer : public streambuf
+{
 public:
     int overflow(int c) { return c; }
 };
 
-int readInt(const char* prompt, int minValue, int maxValue) {
+int readInt(const char *prompt, int minValue, int maxValue)
+{
     int value;
-    while (true) {
+    while (true)
+    {
         cout << prompt;
-        if (cin >> value) {
-            if (value >= minValue && value <= maxValue) return value;
-        } else if (cin.eof()) {
+        if (cin >> value)
+        {
+            if (value >= minValue && value <= maxValue)
+                return value;
+        }
+        else if (cin.eof())
+        {
             cout << "\nInput ended. Exiting program.\n";
             exit(0);
         }
@@ -58,16 +71,15 @@ int readInt(const char* prompt, int minValue, int maxValue) {
     }
 }
 
-class Reportable {
+class Reportable
+{
 public:
     virtual ~Reportable() {}
     virtual void displayReport() const = 0;
-    virtual const char* moduleName() const = 0;
+    virtual const char *moduleName() const = 0;
 };
 
-
-//Module 1:: Vehicle & Lane Management
-
+// Module 1:: Vehicle & Lane Management
 
 enum VehicleType
 {
@@ -125,29 +137,29 @@ public:
         return 0;
     }
 
-    static const char* typeName(VehicleType type)
+    static const char *typeName(VehicleType type)
     {
         switch (type)
         {
-            case UNKNOWN:
-                return "Unknown";
-            case CAR: 
-                return "Car";
-            case BUS: 
-                return "Bus";
-            case MOTORBIKE: 
-                return "Motorbike";
-            case TRUCK: 
-                return "Truck";
-            case AMBULANCE:
-                return "Ambulance";
-            case FIRE_TRUCK:
-                return "Fire Truck";
-            case POLICE_CAR:
-                return "Police Car";
-            default:
-                 return "Unknown";
-        } 
+        case UNKNOWN:
+            return "Unknown";
+        case CAR:
+            return "Car";
+        case BUS:
+            return "Bus";
+        case MOTORBIKE:
+            return "Motorbike";
+        case TRUCK:
+            return "Truck";
+        case AMBULANCE:
+            return "Ambulance";
+        case FIRE_TRUCK:
+            return "Fire Truck";
+        case POLICE_CAR:
+            return "Police Car";
+        default:
+            return "Unknown";
+        }
     }
 
     static int getCreatedCount()
@@ -212,12 +224,12 @@ public:
         return isEmergencyType(type);
     }
 
-    friend ostream& operator<<(ostream& out, const Vehicle& vehicle);
+    friend ostream &operator<<(ostream &out, const Vehicle &vehicle);
 };
 
 int Vehicle::createdCount = 0;
 
-ostream& operator<<(ostream& out, const Vehicle& vehicle)
+ostream &operator<<(ostream &out, const Vehicle &vehicle)
 {
     out << Vehicle::typeName(vehicle.type) << " " << vehicle.vehicleId << " (arrived " << vehicle.arrivalTime << "s";
 
@@ -237,15 +249,15 @@ int emergencyDestination(VehicleType type)
 {
     if (type == AMBULANCE)
     {
-        return 0;   // City Hospital
+        return 0; // City Hospital
     }
 
     if (type == FIRE_TRUCK)
     {
-        return 9;   // Stadium Gate (assumed incident site)
+        return 9; // Stadium Gate (assumed incident site)
     }
 
-    return 7;       // Civil Lines (assumed incident site)
+    return 7; // Civil Lines (assumed incident site)
 }
 
 class Lane : public Reportable
@@ -279,7 +291,7 @@ public:
         strcpy(laneName, "Unknown");
     }
 
-    Lane(const char* name)
+    Lane(const char *name)
     {
         initCounters();
 
@@ -296,7 +308,7 @@ public:
 
     bool isEmpty() const
     {
-        if(frontIndex==-1)
+        if (frontIndex == -1)
         {
             return true;
         }
@@ -308,7 +320,7 @@ public:
 
     bool isFull() const
     {
-        if(vehicleCount == LANE_CAPACITY)
+        if (vehicleCount == LANE_CAPACITY)
         {
             return true;
         }
@@ -323,20 +335,20 @@ public:
         return vehicleCount;
     }
 
-    const char* getName() const
+    const char *getName() const
     {
         return laneName;
     }
 
     // Enqueue
-    bool addVehicle(const Vehicle& vehicle)
+    bool addVehicle(const Vehicle &vehicle)
     {
-        if(isFull())
+        if (isFull())
         {
             totalRejected++;
             return false;
         }
-        if(frontIndex == -1)
+        if (frontIndex == -1)
         {
             frontIndex = 0;
             rearIndex = 0;
@@ -352,7 +364,7 @@ public:
     }
 
     // Dequeue
-    bool serveVehicle(Vehicle& servedVehicle)
+    bool serveVehicle(Vehicle &servedVehicle)
     {
         if (isEmpty())
         {
@@ -377,7 +389,7 @@ public:
     }
 
     // Peek
-    bool peekVehicle(Vehicle& vehicle) const
+    bool peekVehicle(Vehicle &vehicle) const
     {
         if (isEmpty())
         {
@@ -389,7 +401,7 @@ public:
     }
 
     //(used for emergency vehicles).
-    bool extractVehicleById(int vehicleId, Vehicle& removedVehicle)
+    bool extractVehicleById(int vehicleId, Vehicle &removedVehicle)
     {
         if (isEmpty())
         {
@@ -490,16 +502,13 @@ public:
         cout << left << setw(7) << laneName << right << " waiting: " << setw(3) << vehicleCount << " | arrived: " << setw(3) << totalArrived << " | served: " << setw(3) << totalServed << " | extracted: " << setw(3) << totalExtracted << " | rejected: " << totalRejected << '\n';
     }
 
-    const char* moduleName() const
+    const char *moduleName() const
     {
         return "Module 1 - Lane Management";
     }
 };
 
-
-
-//Module 2:: Signal Control & Adaptive Timing
-
+// Module 2:: Signal Control & Adaptive Timing
 
 enum SignalState
 {
@@ -508,7 +517,7 @@ enum SignalState
     GREEN
 };
 
-const char* signalStateText(SignalState state)
+const char *signalStateText(SignalState state)
 {
     if (state == RED)
     {
@@ -536,7 +545,7 @@ public:
         stateChangeCount = 0;
     }
 
-    TrafficSignal(const char* name)
+    TrafficSignal(const char *name)
     {
         strncpy(signalName, name, sizeof(signalName) - 1);
         signalName[sizeof(signalName) - 1] = '\0';
@@ -549,12 +558,12 @@ public:
         return currentState;
     }
 
-    const char* getName() const
+    const char *getName() const
     {
         return signalName;
     }
 
-    const char* getStateText() const
+    const char *getStateText() const
     {
         return signalStateText(currentState);
     }
@@ -586,7 +595,6 @@ public:
     }
 };
 
-
 // Linked list that records every signal change.
 class SignalEventLog
 {
@@ -597,9 +605,9 @@ private:
         char signalName[30];
         SignalState oldState;
         SignalState newState;
-        Node* next;
+        Node *next;
 
-        Node(int number, const char* name, SignalState oldValue, SignalState newValue)
+        Node(int number, const char *name, SignalState oldValue, SignalState newValue)
         {
             eventNumber = number;
             strncpy(signalName, name, sizeof(signalName) - 1);
@@ -610,8 +618,8 @@ private:
         }
     };
 
-    Node* head;
-    Node* tail;
+    Node *head;
+    Node *tail;
     int eventCount;
 
 public:
@@ -619,24 +627,24 @@ public:
     {
     }
 
-    SignalEventLog(const SignalEventLog&) = delete;
-    SignalEventLog& operator=(const SignalEventLog&) = delete;
+    SignalEventLog(const SignalEventLog &) = delete;
+    SignalEventLog &operator=(const SignalEventLog &) = delete;
 
     ~SignalEventLog()
     {
-        Node* current = head;
+        Node *current = head;
 
         while (current != NULL)
         {
-            Node* nextNode = current->next;
+            Node *nextNode = current->next;
             delete current;
             current = nextNode;
         }
     }
 
-    void addEvent(const char* name, SignalState oldState, SignalState newState)
+    void addEvent(const char *name, SignalState oldState, SignalState newState)
     {
-        Node* newNode = new Node(eventCount + 1, name, oldState, newState);
+        Node *newNode = new Node(eventCount + 1, name, oldState, newState);
 
         if (head == NULL)
         {
@@ -667,7 +675,7 @@ public:
             return;
         }
 
-        const Node* current = head;
+        const Node *current = head;
 
         while (current != NULL)
         {
@@ -676,7 +684,6 @@ public:
         }
     }
 };
-
 
 enum TrafficPhase
 {
@@ -694,7 +701,7 @@ private:
     int safetyViolations;
     SignalEventLog eventLog;
 
-    void changeAndLog(TrafficSignal& signal, SignalState newState)
+    void changeAndLog(TrafficSignal &signal, SignalState newState)
     {
         SignalState oldState = signal.getState();
 
@@ -709,7 +716,7 @@ private:
         }
     }
 
-    void moveToRed(TrafficSignal& signal)
+    void moveToRed(TrafficSignal &signal)
     {
         if (signal.getState() == GREEN)
         {
@@ -798,12 +805,11 @@ public:
         eventLog.display();
     }
 
-    const char* moduleName() const
+    const char *moduleName() const
     {
         return "Module 2 - Signal Phase Control";
     }
 };
-
 
 class TrafficAnalyzer : public Reportable
 {
@@ -815,7 +821,7 @@ private:
 public:
     TrafficAnalyzer()
     {
-        secondsPerVehicle = SECONDS_PER_VEHICLE;   // 3 seconds (see Common.h)
+        secondsPerVehicle = SECONDS_PER_VEHICLE; // 3 seconds (see Common.h)
         minGreenTime = 10;
         maxGreenTime = 60;
     }
@@ -876,18 +882,15 @@ public:
         cout << "Maximum green time: " << maxGreenTime << " seconds\n";
     }
 
-    const char* moduleName() const
+    const char *moduleName() const
     {
         return "Module 2 - Adaptive Traffic Timing";
     }
 };
 
+// Module 3:: Vehicle Detection
 
-
-//Module 3:: Vehicle Detection
-
-
-bool readYesNo(const char* prompt)
+bool readYesNo(const char *prompt)
 {
     char answer;
 
@@ -925,17 +928,17 @@ bool readYesNo(const char* prompt)
 // A console program has no real camera, so detection has three modes:
 //   mode 1 = the operator types what the sensor reads
 //   mode 2 = a seeded random generator acts as the sensor
-//   mode 3 = vision: reads detections.txt written by yolo_counter.py (YOLOv8)
+//   mode 3 = file input: reads vehicle data from detections.txt
 class VehicleDetector
 {
 private:
-    int mode;                  // 1 = manual, 2 = random, 3 = vision file
+    int mode; // 1 = manual, 2 = random, 3 = text file
     unsigned long seed;
 
-    // Mode 3 data: each lane lists its vehicles from the stop line backwards
-    int visionCount[4];
-    VehicleType visionType[4][LANE_CAPACITY];
-    VehicleType visionEmergency[4][LANE_CAPACITY];   // UNKNOWN = ordinary vehicle
+    // File-input data: each lane lists its vehicles from the stop line backwards
+    int fileInputCount[4];
+    VehicleType fileInputType[4][LANE_CAPACITY];
+    VehicleType fileInputEmergency[4][LANE_CAPACITY]; // UNKNOWN = ordinary vehicle
 
     int nextInt(int low, int high)
     {
@@ -945,7 +948,7 @@ private:
     }
 
     // Case-insensitive text comparison
-    static bool sameWord(const char* a, const char* b)
+    static bool sameWord(const char *a, const char *b)
     {
         while (*a != '\0' && *b != '\0')
         {
@@ -975,9 +978,9 @@ private:
     }
 
     // LINEAR SEARCH: lane name -> index 0..3 (-1 if unknown)
-    static int laneIndex(const char* name)
+    static int laneIndex(const char *name)
     {
-        const char* names[4] = {"North", "South", "East", "West"};
+        const char *names[4] = {"North", "South", "East", "West"};
 
         for (int i = 0; i < 4; i++)
         {
@@ -994,9 +997,9 @@ private:
     {
         int total = 0;
 
-        for (int i = 0; i < visionCount[lane]; i++)
+        for (int i = 0; i < fileInputCount[lane]; i++)
         {
-            if (visionEmergency[lane][i] != UNKNOWN)
+            if (fileInputEmergency[lane][i] != UNKNOWN)
             {
                 total++;
             }
@@ -1006,9 +1009,9 @@ private:
     }
 
     // Line format:  North: car car bus ambulance motorbike   (front of queue first)
-    bool loadVisionFile(const char* fileName)
+    bool loadInputFile(const char *fileName)
     {
-        FILE* file = fopen(fileName, "r");
+        FILE *file = fopen(fileName, "r");
 
         if (file == NULL)
         {
@@ -1017,7 +1020,7 @@ private:
 
         for (int lane = 0; lane < 4; lane++)
         {
-            visionCount[lane] = 0;
+            fileInputCount[lane] = 0;
         }
 
         char line[4096];
@@ -1055,7 +1058,7 @@ private:
 
             if (lane < 0)
             {
-                cout << "[VISION] Unknown lane '" << laneWord << "' ignored.\n";
+                cout << "[FILE INPUT] Unknown lane '" << laneWord << "' ignored.\n";
                 continue;
             }
 
@@ -1065,9 +1068,9 @@ private:
             {
                 pos += used;
 
-                if (visionCount[lane] >= LANE_CAPACITY)
+                if (fileInputCount[lane] >= LANE_CAPACITY)
                 {
-                    cout << "[VISION] " << laneWord << " lane is over capacity; extra vehicles ignored.\n";
+                    cout << "[FILE INPUT] " << laneWord << " lane is over capacity; extra vehicles ignored.\n";
                     break;
                 }
 
@@ -1092,7 +1095,7 @@ private:
                 }
                 else if (sameWord(word, "ambulance"))
                 {
-                    emergencyKind = AMBULANCE;     // moved to the emergency heap later
+                    emergencyKind = AMBULANCE; // moved to the emergency heap later
                 }
                 else if (sameWord(word, "firetruck") || sameWord(word, "fire_truck") || sameWord(word, "fire-truck"))
                 {
@@ -1105,14 +1108,14 @@ private:
                 }
                 else
                 {
-                    cout << "[VISION] Unknown vehicle '" << word << "' ignored.\n";
+                    cout << "[FILE INPUT] Unknown vehicle '" << word << "' ignored.\n";
                     continue;
                 }
 
-                int index = visionCount[lane];
-                visionType[lane][index] = type;
-                visionEmergency[lane][index] = emergencyKind;
-                visionCount[lane]++;
+                int index = fileInputCount[lane];
+                fileInputType[lane][index] = type;
+                fileInputEmergency[lane][index] = emergencyKind;
+                fileInputCount[lane]++;
             }
         }
 
@@ -1120,11 +1123,11 @@ private:
         return true;
     }
 
-    void showVisionSummary() const
+    void showInputSummary() const
     {
-        const char* names[4] = {"North", "South", "East", "West"};
+        const char *names[4] = {"North", "South", "East", "West"};
 
-        cout << "\n--- VISION DETECTIONS (" << visionFileName << ") ---\n";
+        cout << "\n--- FILE INPUT SUMMARY (" << inputFileName << ") ---\n";
 
         for (int lane = 0; lane < 4; lane++)
         {
@@ -1136,29 +1139,29 @@ private:
             int fireTrucks = 0;
             int policeCars = 0;
 
-            for (int i = 0; i < visionCount[lane]; i++)
+            for (int i = 0; i < fileInputCount[lane]; i++)
             {
-                if (visionEmergency[lane][i] == AMBULANCE)
+                if (fileInputEmergency[lane][i] == AMBULANCE)
                 {
                     ambulances++;
                 }
-                else if (visionEmergency[lane][i] == FIRE_TRUCK)
+                else if (fileInputEmergency[lane][i] == FIRE_TRUCK)
                 {
                     fireTrucks++;
                 }
-                else if (visionEmergency[lane][i] == POLICE_CAR)
+                else if (fileInputEmergency[lane][i] == POLICE_CAR)
                 {
                     policeCars++;
                 }
-                else if (visionType[lane][i] == CAR)
+                else if (fileInputType[lane][i] == CAR)
                 {
                     cars++;
                 }
-                else if (visionType[lane][i] == BUS)
+                else if (fileInputType[lane][i] == BUS)
                 {
                     buses++;
                 }
-                else if (visionType[lane][i] == MOTORBIKE)
+                else if (fileInputType[lane][i] == MOTORBIKE)
                 {
                     bikes++;
                 }
@@ -1168,7 +1171,7 @@ private:
                 }
             }
 
-            cout << left << setw(6) << names[lane] << right << ": " << setw(3) << visionCount[lane]
+            cout << left << setw(6) << names[lane] << right << ": " << setw(3) << fileInputCount[lane]
                  << " vehicles | car " << cars << ", bus " << buses << ", motorbike " << bikes
                  << ", truck " << trucks << " | ambulance " << ambulances
                  << ", fire truck " << fireTrucks << ", police " << policeCars << '\n';
@@ -1185,7 +1188,7 @@ public:
 
         for (int lane = 0; lane < 4; lane++)
         {
-            visionCount[lane] = 0;
+            fileInputCount[lane] = 0;
         }
     }
 
@@ -1194,18 +1197,18 @@ public:
         cout << "Detection mode:\n";
         cout << "  1 = Manual entry (operator types what the sensor reads)\n";
         cout << "  2 = Random sensor simulation\n";
-        cout << "  3 = Vision (reads " << visionFileName << " written by yolo_counter.py)\n";
+        cout << "  3 = File input (reads " << inputFileName << ")\n";
         mode = readInt("Choose mode: ", 1, 3);
 
         if (mode == 3)
         {
-            if (loadVisionFile(visionFileName))
+            if (loadInputFile(inputFileName))
             {
-                showVisionSummary();
+                showInputSummary();
             }
             else
             {
-                cout << "Could not read " << visionFileName << ". Run yolo_counter.py first.\n";
+                cout << "Could not read " << inputFileName << ". Check that the input file exists.\n";
                 cout << "Falling back to manual entry.\n";
                 mode = 1;
             }
@@ -1214,10 +1217,10 @@ public:
         cout << '\n';
     }
 
-    // Non-interactive: switch to vision mode using this file (batch mode / front end).
-    bool useVisionFile(const char* fileName)
+    // Non-interactive: load vehicle data from this text file (batch mode / front end).
+    bool useInputFile(const char *fileName)
     {
-        if (!loadVisionFile(fileName))
+        if (!loadInputFile(fileName))
         {
             return false;
         }
@@ -1227,13 +1230,13 @@ public:
     }
 
     // Sensor 1: counts the vehicles waiting in a lane.
-    int detectVehicles(const char* laneName)
+    int detectVehicles(const char *laneName)
     {
         if (mode == 3)
         {
             int lane = laneIndex(laneName);
-            int count = (lane >= 0) ? visionCount[lane] : 0;
-            cout << "[VISION] " << laneName << " lane: " << count << " vehicles detected\n";
+            int count = (lane >= 0) ? fileInputCount[lane] : 0;
+            cout << "[FILE INPUT] " << laneName << " lane: " << count << " vehicles detected\n";
             return count;
         }
 
@@ -1250,16 +1253,16 @@ public:
     }
 
     // Type of the vehicle at queue position 'index' (0 = front of the lane).
-    // Vision mode returns the class YOLO saw; the other modes cycle through types.
-    VehicleType vehicleTypeAt(const char* laneName, int index) const
+    // File-input mode returns the vehicle type stored in the text file; other modes cycle through types.
+    VehicleType vehicleTypeAt(const char *laneName, int index) const
     {
         if (mode == 3)
         {
             int lane = laneIndex(laneName);
 
-            if (lane >= 0 && index < visionCount[lane])
+            if (lane >= 0 && index < fileInputCount[lane])
             {
-                return visionType[lane][index];
+                return fileInputType[lane][index];
             }
         }
 
@@ -1267,7 +1270,7 @@ public:
     }
 
     // Sensor 2: detects how many emergency vehicles are in a lane.
-    int detectEmergencies(const char* laneName, int vehicleCount)
+    int detectEmergencies(const char *laneName, int vehicleCount)
     {
         if (vehicleCount == 0)
         {
@@ -1293,7 +1296,7 @@ public:
 
             if (found > 0)
             {
-                cout << "[VISION] " << found << " emergency vehicle(s) detected in " << laneName << " lane\n";
+                cout << "[FILE INPUT] " << found << " emergency vehicle(s) detected in " << laneName << " lane\n";
             }
 
             return found;
@@ -1317,16 +1320,16 @@ public:
     }
 
     // Which kind of emergency vehicle is at this queue position (1 = front)?
-    VehicleType detectEmergencyKind(const char* laneName, int position)
+    VehicleType detectEmergencyKind(const char *laneName, int position)
     {
         if (mode == 3)
         {
             int lane = laneIndex(laneName);
 
-            if (lane >= 0 && position >= 1 && position <= visionCount[lane] &&
-                visionEmergency[lane][position - 1] != UNKNOWN)
+            if (lane >= 0 && position >= 1 && position <= fileInputCount[lane] &&
+                fileInputEmergency[lane][position - 1] != UNKNOWN)
             {
-                return visionEmergency[lane][position - 1];
+                return fileInputEmergency[lane][position - 1];
             }
 
             return AMBULANCE;
@@ -1345,19 +1348,19 @@ public:
     }
 
     // Position (1 = front of queue) of the emergency vehicle in its lane.
-    int detectEmergencyPosition(const char* laneName, int vehicleCount, const int used[], int usedCount)
+    int detectEmergencyPosition(const char *laneName, int vehicleCount, const int used[], int usedCount)
     {
         if (mode == 3)
         {
-            // the usedCount-th emergency vehicle in the lane, counted from the front
+            // In file-input mode, locate the usedCount-th emergency vehicle in the lane, counted from the front
             int lane = laneIndex(laneName);
             int seen = 0;
 
             if (lane >= 0)
             {
-                for (int i = 0; i < visionCount[lane]; i++)
+                for (int i = 0; i < fileInputCount[lane]; i++)
                 {
-                    if (visionEmergency[lane][i] != UNKNOWN)
+                    if (fileInputEmergency[lane][i] != UNKNOWN)
                     {
                         if (seen == usedCount)
                         {
@@ -1410,11 +1413,7 @@ public:
     }
 };
 
-
-
-//Module 4:: Emergency Routing (priority heap + green corridor)
-
-
+// Module 4:: Emergency Routing (priority heap + green corridor)
 
 // MODULE 4 (part 1): EMERGENCY VEHICLE PRIORITY
 
@@ -1427,7 +1426,7 @@ private:
     int totalExtracted;
 
     // Higher priority first; then earlier arrival; then smaller ID.
-    bool hasHigherPriority(const Vehicle& a, const Vehicle& b) const
+    bool hasHigherPriority(const Vehicle &a, const Vehicle &b) const
     {
         if (a.getPriority() != b.getPriority())
         {
@@ -1506,7 +1505,7 @@ public:
         return heapSize;
     }
 
-    bool insertEmergency(const Vehicle& vehicle)
+    bool insertEmergency(const Vehicle &vehicle)
     {
         if (heapSize == MAX_EMERGENCIES)
         {
@@ -1528,7 +1527,7 @@ public:
         return true;
     }
 
-    bool extractHighestPriority(Vehicle& vehicle)
+    bool extractHighestPriority(Vehicle &vehicle)
     {
         if (isEmpty())
         {
@@ -1574,7 +1573,7 @@ public:
         cout << "Total dispatched: " << totalExtracted << '\n';
     }
 
-    const char* moduleName() const
+    const char *moduleName() const
     {
         return "Module 4 - Emergency Priority";
     }
@@ -1583,16 +1582,14 @@ public:
 // PENDING (Phase III): change priority of a queued vehicle, heap tree view,
 // non-destructive dispatch order.
 
-
 // MODULE 4 (part 2): GREEN CORRIDOR
-
 
 class GreenCorridor : public Reportable
 {
 private:
-    int distanceMap[MAX_INTERSECTIONS][MAX_INTERSECTIONS];   // 0 = no road
+    int distanceMap[MAX_INTERSECTIONS][MAX_INTERSECTIONS]; // 0 = no road
     bool blocked[MAX_INTERSECTIONS][MAX_INTERSECTIONS];
-    const char* intersectionNames[MAX_INTERSECTIONS];
+    const char *intersectionNames[MAX_INTERSECTIONS];
 
     bool roadAvailable(int a, int b) const
     {
@@ -1628,7 +1625,7 @@ public:
         return id >= 0 && id < MAX_INTERSECTIONS;
     }
 
-    const char* getName(int id) const
+    const char *getName(int id) const
     {
         return validIntersection(id) ? intersectionNames[id] : "Invalid";
     }
@@ -1674,7 +1671,7 @@ public:
     }
 
     // BFS: route with the FEWEST roads.
-    bool findShortestRoute(int source, int destination, int route[], int& routeLength) const
+    bool findShortestRoute(int source, int destination, int route[], int &routeLength) const
     {
         routeLength = 0;
 
@@ -1827,7 +1824,7 @@ public:
         cout << "Roads: " << roads << " (blocked: " << blockedRoads << ")\n";
     }
 
-    const char* moduleName() const
+    const char *moduleName() const
     {
         return "Module 4 - Green Corridor";
     }
@@ -1836,21 +1833,19 @@ public:
 // PENDING (Phase III): Dijkstra shortest-distance route, DFS reachability
 // check, green-hold marking of corridor intersections, unblock road.
 
-
-//Module 5:: Analytics & Reports
-
+// Module 5:: Analytics & Reports
 
 struct ServiceRecord
 {
     int vehicleId;
-    int laneCode;      // 0 = emergency corridor, 1-4 = N, S, E, W
+    int laneCode; // 0 = emergency corridor, 1-4 = N, S, E, W
     int serviceTime;
     int waitingTime;
     bool emergency;
     VehicleType type;
 };
 
-const char* laneCodeName(int code)
+const char *laneCodeName(int code)
 {
     if (code == 0)
     {
@@ -1883,7 +1878,7 @@ const char* laneCodeName(int code)
 class PerformanceAnalytics : public Reportable
 {
 private:
-    ServiceRecord* records;
+    ServiceRecord *records;
     int recordCount;
     int capacity;
 
@@ -1902,7 +1897,7 @@ private:
             return false;
         }
 
-        ServiceRecord* newRecords = new (nothrow) ServiceRecord[newCapacity];
+        ServiceRecord *newRecords = new (nothrow) ServiceRecord[newCapacity];
 
         if (newRecords == NULL)
         {
@@ -1941,8 +1936,8 @@ public:
     }
 
     // Owns raw memory, so copying is forbidden (Rule of Three).
-    PerformanceAnalytics(const PerformanceAnalytics&) = delete;
-    PerformanceAnalytics& operator=(const PerformanceAnalytics&) = delete;
+    PerformanceAnalytics(const PerformanceAnalytics &) = delete;
+    PerformanceAnalytics &operator=(const PerformanceAnalytics &) = delete;
 
     int getRecordCount() const
     {
@@ -1969,7 +1964,7 @@ public:
         return minimumWaitingTime;
     }
 
-    const ServiceRecord& getRecord(int index) const
+    const ServiceRecord &getRecord(int index) const
     {
         return records[index];
     }
@@ -2078,7 +2073,7 @@ public:
             return;
         }
 
-        ServiceRecord* sorted = new (nothrow) ServiceRecord[recordCount];
+        ServiceRecord *sorted = new (nothrow) ServiceRecord[recordCount];
 
         if (sorted == NULL)
         {
@@ -2163,16 +2158,13 @@ public:
         }
     }
 
-    const char* moduleName() const
+    const char *moduleName() const
     {
         return "Module 5 - Analytics";
     }
 };
 
-
-
-//Module 6:: Fixed-Timer vs Adaptive Comparison
-
+// Module 6:: Fixed-Timer vs Adaptive Comparison
 
 struct StrategyResult
 {
@@ -2182,7 +2174,7 @@ struct StrategyResult
     int maxWait;
     int emergencyServed;
     int emergencyWait;
-    int kindServed[3];     // 0 = ambulance, 1 = fire truck, 2 = police car
+    int kindServed[3]; // 0 = ambulance, 1 = fire truck, 2 = police car
     int kindWait[3];
     int phasesUsed;
     int greenGiven;
@@ -2194,21 +2186,21 @@ struct StrategyResult
 class StrategyComparison : public Reportable
 {
 private:
-    int total[4];                          // 0..3 = North, South, East, West
+    int total[4]; // 0..3 = North, South, East, West
     int emergencyCount[4];
-    VehicleType emergencyKind[4][LANE_CAPACITY + 1];   // [lane][position 1..count], UNKNOWN = ordinary
-    int count[4];                          // ordinary vehicles still waiting in the normal lane
-    int emWaiting[4];                      // emergency vehicles still waiting in the green corridor lane
-    int emScan[4];                         // next position to look at in emergencyKind[lane][]
-    int nextPos[4];                        // next position in the normal queue (fixed road without a lane)
-    bool flagsActive;                      // emergency vehicles wait inside the normal queue
-    bool fixedHasLane;                     // does the fixed road ALSO have a green corridor lane?
+    VehicleType emergencyKind[4][LANE_CAPACITY + 1]; // [lane][position 1..count], UNKNOWN = ordinary
+    int count[4];                                    // ordinary vehicles still waiting in the normal lane
+    int emWaiting[4];                                // emergency vehicles still waiting in the green corridor lane
+    int emScan[4];                                   // next position to look at in emergencyKind[lane][]
+    int nextPos[4];                                  // next position in the normal queue (fixed road without a lane)
+    bool flagsActive;                                // emergency vehicles wait inside the normal queue
+    bool fixedHasLane;                               // does the fixed road ALSO have a green corridor lane?
     int fixedGreen;
     bool ready;
     StrategyResult fixedResult;
     StrategyResult adaptiveResult;
 
-    void resetResult(StrategyResult& r, const char* name)
+    void resetResult(StrategyResult &r, const char *name)
     {
         strncpy(r.name, name, sizeof(r.name) - 1);
         r.name[sizeof(r.name) - 1] = '\0';
@@ -2264,7 +2256,7 @@ private:
     }
 
     // kind = UNKNOWN for an ordinary vehicle, otherwise the emergency vehicle type
-    void record(StrategyResult& r, int wait, VehicleType kind)
+    void record(StrategyResult &r, int wait, VehicleType kind)
     {
         r.served++;
         r.totalWait += wait;
@@ -2300,7 +2292,7 @@ private:
     }
 
     // Normal lane: releases one vehicle every SECONDS_PER_VEHICLE seconds.
-    int serveLane(int lane, int slots, int clock, StrategyResult& r)
+    int serveLane(int lane, int slots, int clock, StrategyResult &r)
     {
         int served = 0;
 
@@ -2325,7 +2317,7 @@ private:
 
     // Green corridor lane (fixed timer): its own queue, released during the lane's direction
     // green at the same pace, side by side with the normal lane. No signal priority.
-    int serveEmergencyLane(int lane, int slots, int clock, StrategyResult& r)
+    int serveEmergencyLane(int lane, int slots, int clock, StrategyResult &r)
     {
         int served = 0;
 
@@ -2346,7 +2338,7 @@ private:
     }
 
     // One green phase: both lanes of a direction move side by side.
-    void runPhase(TrafficPhase phase, int green, int& clock, StrategyResult& r, bool skipIfEmpty)
+    void runPhase(TrafficPhase phase, int green, int &clock, StrategyResult &r, bool skipIfEmpty)
     {
         if (skipIfEmpty && directionEmpty(phase))
         {
@@ -2415,7 +2407,7 @@ private:
     // Strategy 2: exactly what Module 7 does - emergency corridor first,
     // then green time from the longest lane, busier direction first,
     // empty directions skipped.
-    void runAdaptive(const GreenCorridor& corridor)
+    void runAdaptive(const GreenCorridor &corridor)
     {
         resetResult(adaptiveResult, "Adaptive");
         loadLanes(0);
@@ -2434,7 +2426,7 @@ private:
             offset += total[lane];
         }
 
-        int order[MAX_EMERGENCIES][2];      // [i][0] = lane, [i][1] = position
+        int order[MAX_EMERGENCIES][2]; // [i][0] = lane, [i][1] = position
         int orderCount = 0;
 
         for (int lane = 0; lane < 4; lane++)
@@ -2476,8 +2468,8 @@ private:
 
             if (corridor.findShortestRoute(entryByLane[lane], emergencyDestination(kind), route, routeLength))
             {
-                record(adaptiveResult, clock + SECONDS_PER_VEHICLE, kind);   // crosses the stop line
-                clock += EMERGENCY_CROSSING_TIME;                            // junction held until it has cleared
+                record(adaptiveResult, clock + SECONDS_PER_VEHICLE, kind); // crosses the stop line
+                clock += EMERGENCY_CROSSING_TIME;                          // junction held until it has cleared
             }
         }
 
@@ -2507,18 +2499,18 @@ private:
         return n > 0 ? static_cast<double>(sum) / n : 0.0;
     }
 
-    void printRow(const char* label, double a, double b, int decimals) const
+    void printRow(const char *label, double a, double b, int decimals) const
     {
         cout << left << setw(32) << label << fixed << setprecision(decimals)
              << setw(16) << a << setw(16) << b << right << '\n';
     }
 
-    void printTextRow(const char* label, const char* a, const char* b) const
+    void printTextRow(const char *label, const char *a, const char *b) const
     {
         cout << left << setw(32) << label << setw(16) << a << setw(16) << b << right << '\n';
     }
 
-    void printChange(const char* label, double fixedValue, double adaptiveValue) const
+    void printChange(const char *label, double fixedValue, double adaptiveValue) const
     {
         if (fixedValue <= 0)
         {
@@ -2597,7 +2589,7 @@ public:
     }
 
     // Same as compare() but with no prompt and no printing (front end / batch mode).
-    void evaluate(const GreenCorridor& corridor, int fixedGreenSeconds, bool fixedLane = false)
+    void evaluate(const GreenCorridor &corridor, int fixedGreenSeconds, bool fixedLane = false)
     {
         if (!ready)
         {
@@ -2630,17 +2622,17 @@ public:
         return fixedHasLane;
     }
 
-    const StrategyResult& getFixedResult() const
+    const StrategyResult &getFixedResult() const
     {
         return fixedResult;
     }
 
-    const StrategyResult& getAdaptiveResult() const
+    const StrategyResult &getAdaptiveResult() const
     {
         return adaptiveResult;
     }
 
-    void compare(const GreenCorridor& corridor)
+    void compare(const GreenCorridor &corridor)
     {
         printHeader("FIXED-TIMER vs ADAPTIVE COMPARISON");
 
@@ -2702,16 +2694,13 @@ public:
         cout << "its green. Emergency vehicles get no signal priority and wait in the normal queue.\n";
     }
 
-    const char* moduleName() const
+    const char *moduleName() const
     {
         return "Module 6 - Strategy Comparison";
     }
 };
 
-
-
-//Module 7:: Simulation Engine
-
+// Module 7:: Simulation Engine
 
 enum LaneIdentifier
 {
@@ -2721,7 +2710,7 @@ enum LaneIdentifier
     WEST_LANE = 4
 };
 
-class TrafficSimulation 
+class TrafficSimulation
 {
 private:
     Lane north;
@@ -2749,7 +2738,8 @@ private:
     VehicleType emergencyKinds[4][VehicleDetector::MAX_EMERGENCY_PER_LANE];
 
     // Records kept for the front end report (batch mode)
-    struct PhaseLog {
+    struct PhaseLog
+    {
         int cycle;
         int phase;
         int green;
@@ -2760,10 +2750,11 @@ private:
         int servedB;
     };
 
-    struct EmergencyLog {
-        int start;          // signals turn red for this vehicle
-        int end;            // junction released
-        int eta;            // arrives at its destination (crossing time + route length)
+    struct EmergencyLog
+    {
+        int start; // signals turn red for this vehicle
+        int end;   // junction released
+        int eta;   // arrives at its destination (crossing time + route length)
         int id;
         int type;
         int priority;
@@ -2781,30 +2772,40 @@ private:
     int emergencyLogCount;
     int currentCycle;
 
-    Lane& laneByCode(int code) {
-        if (code == NORTH_LANE) return north;
-        if (code == SOUTH_LANE) return south;
-        if (code == EAST_LANE) return east;
+    Lane &laneByCode(int code)
+    {
+        if (code == NORTH_LANE)
+            return north;
+        if (code == SOUTH_LANE)
+            return south;
+        if (code == EAST_LANE)
+            return east;
         return west;
     }
 
-    int northSouthCount() const {
+    int northSouthCount() const
+    {
         return north.getCount() + south.getCount();
     }
 
-    int eastWestCount() const {
+    int eastWestCount() const
+    {
         return east.getCount() + west.getCount();
     }
 
-    int normalRemaining() const {
+    int normalRemaining() const
+    {
         return northSouthCount() + eastWestCount();
     }
 
     // Which lane (0..3) did this vehicle ID come from?
-    int laneOfVehicle(int id) const {
-        for (int lane = 0; lane < 4; lane++) {
+    int laneOfVehicle(int id) const
+    {
+        for (int lane = 0; lane < 4; lane++)
+        {
             if (id > laneStartId[lane] &&
-                id <= laneStartId[lane] + laneCounts[lane]) {
+                id <= laneStartId[lane] + laneCounts[lane])
+            {
                 return lane;
             }
         }
@@ -2814,13 +2815,15 @@ private:
 
     // ---------- STEP 1: DETECTION ----------
 
-    void detectTraffic() {
-        const char* names[4] = {"North", "South", "East", "West"};
+    void detectTraffic()
+    {
+        const char *names[4] = {"North", "South", "East", "West"};
 
         // Sensor 1: vehicle count per lane.
         int offset = 0;
 
-        for (int lane = 0; lane < 4; lane++) {
+        for (int lane = 0; lane < 4; lane++)
+        {
             laneCounts[lane] = detector.detectVehicles(names[lane]);
             laneStartId[lane] = offset;
             offset += laneCounts[lane];
@@ -2829,8 +2832,10 @@ private:
         totalInitialVehicles = offset;
 
         // Create the vehicle objects. IDs run 1..N across all lanes.
-        for (int lane = 0; lane < 4; lane++) {
-            for (int i = 0; i < laneCounts[lane]; i++) {
+        for (int lane = 0; lane < 4; lane++)
+        {
+            for (int i = 0; i < laneCounts[lane]; i++)
+            {
                 VehicleType kind = detector.vehicleTypeAt(names[lane], i);
                 laneByCode(lane + 1).addVehicle(
                     Vehicle(laneStartId[lane] + i + 1, kind, 0));
@@ -2838,15 +2843,18 @@ private:
         }
 
         // Sensor 2: how many sirens in each lane.
-        for (int lane = 0; lane < 4; lane++) {
+        for (int lane = 0; lane < 4; lane++)
+        {
             emergencyCounts[lane] =
                 detector.detectEmergencies(names[lane], laneCounts[lane]);
         }
 
         // For every siren: which vehicle is it? Move it out of the
         // normal queue and into the emergency priority heap.
-        for (int lane = 0; lane < 4; lane++) {
-            for (int k = 0; k < emergencyCounts[lane]; k++) {
+        for (int lane = 0; lane < 4; lane++)
+        {
+            for (int k = 0; k < emergencyCounts[lane]; k++)
+            {
                 int position = detector.detectEmergencyPosition(
                     names[lane], laneCounts[lane], usedPositions[lane], k);
                 usedPositions[lane][k] = position;
@@ -2860,7 +2868,8 @@ private:
                 bool found = laneByCode(lane + 1).extractVehicleById(
                     globalId, removed);
 
-                if (found) {
+                if (found)
+                {
                     emergencyManager.insertEmergency(
                         Vehicle(globalId, emergencyKind, 0));
                 }
@@ -2868,7 +2877,8 @@ private:
         }
     }
 
-    void displayInitialQueues() const {
+    void displayInitialQueues() const
+    {
         cout << "\n--- INITIAL TRAFFIC AFTER EMERGENCY TRANSFER ---\n";
         cout << "North normal queue: " << north.getCount() << '\n';
         cout << "South normal queue: " << south.getCount() << '\n';
@@ -2878,15 +2888,17 @@ private:
 
     // ---------- STEP 2: EMERGENCY GREEN CORRIDOR ----------
 
-    void processEmergencyVehicles() {
-        if (emergencyManager.isEmpty()) {
+    void processEmergencyVehicles()
+    {
+        if (emergencyManager.isEmpty())
+        {
             return;
         }
 
         // Each lane has an entry point. In Phase II, all emergency
         // vehicles use one common destination: City Hospital (node 0).
         const int entryByLane[4] = {1, 3, 8, 5};
-        const char* laneNames[4] = {"North", "South", "East", "West"};
+        const char *laneNames[4] = {"North", "South", "East", "West"};
 
         cout << "\n--- GREEN CORRIDOR ACTIVE ---\n";
 
@@ -2898,20 +2910,23 @@ private:
 
         Vehicle emergency;
 
-        while (emergencyManager.extractHighestPriority(emergency)) {
+        while (emergencyManager.extractHighestPriority(emergency))
+        {
             int lane = laneOfVehicle(emergency.getId());
             int start = entryByLane[lane];
-            int destination = emergencyDestination(emergency.getType());   // depends on the vehicle type
+            int destination = emergencyDestination(emergency.getType()); // depends on the vehicle type
 
             int route[MAX_INTERSECTIONS];
             int routeLength = 0;
 
             // operator<< of Vehicle prints type, ID, arrival time and priority.
-            cout << "\n" << emergency << " from "
+            cout << "\n"
+                 << emergency << " from "
                  << laneNames[lane] << " lane\n";
 
             if (!greenCorridor.findShortestRoute(start, destination,
-                                                 route, routeLength)) {
+                                                 route, routeLength))
+            {
                 emergencyRouteFailures++;
                 cout << "No open route. Vehicle needs an alternative plan.\n";
                 continue;
@@ -2919,10 +2934,12 @@ private:
 
             cout << "Route: ";
 
-            for (int i = 0; i < routeLength; i++) {
+            for (int i = 0; i < routeLength; i++)
+            {
                 cout << greenCorridor.getName(route[i]);
 
-                if (i < routeLength - 1) {
+                if (i < routeLength - 1)
+                {
                     cout << " -> ";
                 }
             }
@@ -2937,8 +2954,9 @@ private:
             int serviceTime = startTime + SECONDS_PER_VEHICLE;
             int waitTime = serviceTime - emergency.getArrivalTime();
 
-            if (emergencyLogCount < MAX_EMERGENCIES) {
-                EmergencyLog& log = emergencyLog[emergencyLogCount++];
+            if (emergencyLogCount < MAX_EMERGENCIES)
+            {
+                EmergencyLog &log = emergencyLog[emergencyLogCount++];
                 log.id = emergency.getId();
                 log.type = emergency.getType();
                 log.priority = emergency.getPriority();
@@ -2951,7 +2969,8 @@ private:
                 log.eta = serviceTime + distance;
                 log.routeLength = routeLength;
 
-                for (int i = 0; i < routeLength; i++) {
+                for (int i = 0; i < routeLength; i++)
+                {
                     log.route[i] = route[i];
                 }
             }
@@ -2973,15 +2992,16 @@ private:
 
     // Lanes of one direction move side by side: every lane can pass
     // one vehicle every SECONDS_PER_VEHICLE seconds.
-    int serveLane(Lane& lane, int laneCode, int slots) {
+    int serveLane(Lane &lane, int laneCode, int slots)
+    {
         int served = 0;
         Vehicle vehicle;
 
-        while (served < slots && lane.serveVehicle(vehicle)) {
+        while (served < slots && lane.serveVehicle(vehicle))
+        {
             served++;
 
-            int serviceTime = simulationClock
-                              + served * analyzer.getSecondsPerVehicle();
+            int serviceTime = simulationClock + served * analyzer.getSecondsPerVehicle();
             int waitTime = serviceTime - vehicle.getArrivalTime();
 
             analytics.addRecord(vehicle.getId(), laneCode, serviceTime,
@@ -2991,17 +3011,20 @@ private:
         return served;
     }
 
-    void runPhase(TrafficPhase phase, int greenTime) {
-        const char* phaseName = (phase == NORTH_SOUTH_PHASE)
-                                    ? "NORTH-SOUTH" : "EAST-WEST";
-        Lane& first  = (phase == NORTH_SOUTH_PHASE) ? north : east;
-        Lane& second = (phase == NORTH_SOUTH_PHASE) ? south : west;
-        int firstCode  = (phase == NORTH_SOUTH_PHASE) ? NORTH_LANE : EAST_LANE;
+    void runPhase(TrafficPhase phase, int greenTime)
+    {
+        const char *phaseName = (phase == NORTH_SOUTH_PHASE)
+                                    ? "NORTH-SOUTH"
+                                    : "EAST-WEST";
+        Lane &first = (phase == NORTH_SOUTH_PHASE) ? north : east;
+        Lane &second = (phase == NORTH_SOUTH_PHASE) ? south : west;
+        int firstCode = (phase == NORTH_SOUTH_PHASE) ? NORTH_LANE : EAST_LANE;
         int secondCode = (phase == NORTH_SOUTH_PHASE) ? SOUTH_LANE : WEST_LANE;
 
         cout << '\n';
 
-        if (first.isEmpty() && second.isEmpty()) {
+        if (first.isEmpty() && second.isEmpty())
+        {
             cout << phaseName << " has no waiting vehicles. Phase skipped.\n";
             return;
         }
@@ -3015,8 +3038,9 @@ private:
         int servedFirst = serveLane(first, firstCode, slots);
         int servedSecond = serveLane(second, secondCode, slots);
 
-        if (phaseLogCount < 100) {
-            PhaseLog& log = phaseLog[phaseLogCount++];
+        if (phaseLogCount < 100)
+        {
+            PhaseLog &log = phaseLog[phaseLogCount++];
             log.cycle = currentCycle;
             log.phase = phase;
             log.green = greenTime;
@@ -3039,7 +3063,8 @@ private:
         simulationClock += greenTime + PhaseController::transitionTime();
     }
 
-    void runSignalCycle() {
+    void runSignalCycle()
+    {
         // Green time follows the longest lane of each direction.
         int nsGreen = analyzer.calculateGreenTime(
             north.getCount() > south.getCount() ? north.getCount()
@@ -3051,7 +3076,8 @@ private:
         TrafficPhase first = analyzer.choosePhase(northSouthCount(),
                                                   eastWestCount());
         TrafficPhase second = (first == NORTH_SOUTH_PHASE)
-                                  ? EAST_WEST_PHASE : NORTH_SOUTH_PHASE;
+                                  ? EAST_WEST_PHASE
+                                  : NORTH_SOUTH_PHASE;
 
         cout << "\nSelected phase: "
              << (first == NORTH_SOUTH_PHASE ? "NORTH-SOUTH" : "EAST-WEST")
@@ -3065,7 +3091,8 @@ private:
 
     // ---------- REPORTS ----------
 
-    void displayFinalQueues() const {
+    void displayFinalQueues() const
+    {
         cout << "\n--- FINAL QUEUE REPORT ---\n";
         cout << "North: " << north.getCount() << '\n';
         cout << "South: " << south.getCount() << '\n';
@@ -3073,9 +3100,9 @@ private:
         cout << "West:  " << west.getCount() << '\n';
     }
 
-    void displaySummary() const {
-        int totalServed = analytics.getNormalServed()
-                          + analytics.getEmergencyServed();
+    void displaySummary() const
+    {
+        int totalServed = analytics.getNormalServed() + analytics.getEmergencyServed();
 
         cout << "\n--- SIMULATION PERFORMANCE SUMMARY ---\n";
         cout << "Initial vehicles: " << totalInitialVehicles << '\n';
@@ -3094,19 +3121,21 @@ private:
     }
 
     // Polymorphism: one loop calls each module's own displayReport().
-    void displayAllReports() const {
-        const Reportable* reports[] = {
+    void displayAllReports() const
+    {
+        const Reportable *reports[] = {
             &north, &south, &east, &west,
             &signalController, &analyzer, &emergencyManager,
-            &greenCorridor, &analytics
-        };
+            &greenCorridor, &analytics};
 
         printHeader("ALL MODULE REPORTS");
 
-        const char* lastModule = "";
+        const char *lastModule = "";
 
-        for (int i = 0; i < 9; i++) {
-            if (strcmp(lastModule, reports[i]->moduleName()) != 0) {
+        for (int i = 0; i < 9; i++)
+        {
+            if (strcmp(lastModule, reports[i]->moduleName()) != 0)
+            {
                 cout << "\n-- " << reports[i]->moduleName() << " --\n";
                 lastModule = reports[i]->moduleName();
             }
@@ -3115,16 +3144,19 @@ private:
         }
     }
 
-    void detailedAnalytics() {
+    void detailedAnalytics()
+    {
         analytics.displayServiceHistory(15);
         analytics.displayReport();
 
         if (analytics.getRecordCount() > 0 &&
-            readYesNo("\nSort history by wait time?")) {
+            readYesNo("\nSort history by wait time?"))
+        {
             analytics.displaySortedHistory();
         }
 
-        if (readYesNo("\nShow all module reports?")) {
+        if (readYesNo("\nShow all module reports?"))
+        {
             displayAllReports();
         }
     }
@@ -3134,7 +3166,8 @@ public:
         : north("North"),
           south("South"),
           east("East"),
-          west("West") {
+          west("West")
+    {
         simulationClock = 0;
         totalInitialVehicles = 0;
         emergencyRouteFailures = 0;
@@ -3142,12 +3175,14 @@ public:
         emergencyLogCount = 0;
         currentCycle = 1;
 
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < 4; i++)
+        {
             laneCounts[i] = 0;
             laneStartId[i] = 0;
             emergencyCounts[i] = 0;
 
-            for (int k = 0; k < VehicleDetector::MAX_EMERGENCY_PER_LANE; k++) {
+            for (int k = 0; k < VehicleDetector::MAX_EMERGENCY_PER_LANE; k++)
+            {
                 usedPositions[i][k] = 0;
                 emergencyKinds[i][k] = UNKNOWN;
             }
@@ -3161,14 +3196,18 @@ public:
 
     // ---------- BATCH MODE (used by the front end) ----------
 
-    static const char* laneNameOf(int index) {
-        static const char* names[4] = {"North", "South", "East", "West"};
+    static const char *laneNameOf(int index)
+    {
+        static const char *names[4] = {"North", "South", "East", "West"};
         return names[index];
     }
 
-    static void printEscaped(const char* text) {
-        for (; *text != '\0'; text++) {
-            if (*text == '\\' || *text == '"') {
+    static void printEscaped(const char *text)
+    {
+        for (; *text != '\0'; text++)
+        {
+            if (*text == '\\' || *text == '"')
+            {
                 putchar('\\');
             }
 
@@ -3176,11 +3215,13 @@ public:
         }
     }
 
-    static void printStrategyJson(const char* key, const StrategyResult& r, bool comma) {
+    static void printStrategyJson(const char *key, const StrategyResult &r, bool comma)
+    {
         double avg = r.served > 0 ? static_cast<double>(r.totalWait) / r.served : 0.0;
         double avgEmergency = r.emergencyServed > 0
-                                  ? static_cast<double>(r.emergencyWait) / r.emergencyServed : 0.0;
-        const char* kindKeys[3] = {"ambulance", "fireTruck", "policeCar"};
+                                  ? static_cast<double>(r.emergencyWait) / r.emergencyServed
+                                  : 0.0;
+        const char *kindKeys[3] = {"ambulance", "fireTruck", "policeCar"};
 
         printf("    \"%s\": {\"served\": %d, \"avgWait\": %.2f, \"maxWait\": %d, "
                "\"emergencyServed\": %d, \"avgEmergencyWait\": %.2f, \"phases\": %d, "
@@ -3188,9 +3229,11 @@ public:
                key, r.served, avg, r.maxWait, r.emergencyServed, avgEmergency,
                r.phasesUsed, r.greenGiven, r.greenWasted);
 
-        for (int k = 0; k < 3; k++) {
+        for (int k = 0; k < 3; k++)
+        {
             double kindAvg = r.kindServed[k] > 0
-                                 ? static_cast<double>(r.kindWait[k]) / r.kindServed[k] : 0.0;
+                                 ? static_cast<double>(r.kindWait[k]) / r.kindServed[k]
+                                 : 0.0;
             printf("\"%s\": {\"served\": %d, \"avgWait\": %.2f}%s", kindKeys[k],
                    r.kindServed[k], kindAvg, k < 2 ? ", " : "");
         }
@@ -3198,17 +3241,20 @@ public:
         printf("}}%s\n", comma ? "," : "");
     }
 
-    void printJsonReport(const char* fileName, int cycles) const {
+    void printJsonReport(const char *fileName, int cycles) const
+    {
         printf("{\n  \"ok\": true,\n  \"source\": \"");
         printEscaped(fileName);
         printf("\",\n");
 
         printf("  \"lanes\": [\n");
-        for (int lane = 0; lane < 4; lane++) {
+        for (int lane = 0; lane < 4; lane++)
+        {
             int normal = laneCounts[lane] - emergencyCounts[lane];
             int kindCount[3] = {0, 0, 0};
 
-            for (int k = 0; k < emergencyCounts[lane]; k++) {
+            for (int k = 0; k < emergencyCounts[lane]; k++)
+            {
                 kindCount[emergencyKinds[lane][k] - AMBULANCE]++;
             }
 
@@ -3220,8 +3266,9 @@ public:
         printf("  ],\n");
 
         printf("  \"emergencies\": [\n");
-        for (int i = 0; i < emergencyLogCount; i++) {
-            const EmergencyLog& e = emergencyLog[i];
+        for (int i = 0; i < emergencyLogCount; i++)
+        {
+            const EmergencyLog &e = emergencyLog[i];
             printf("    {\"id\": %d, \"type\": \"%s\", \"priority\": %d, \"lane\": \"%s\", "
                    "\"destination\": \"%s\", \"distance\": %d, \"serviceTime\": %d, "
                    "\"start\": %d, \"end\": %d, \"eta\": %d, \"route\": [",
@@ -3229,7 +3276,8 @@ public:
                    laneNameOf(e.lane), greenCorridor.getName(e.destination), e.distance,
                    e.serviceTime, e.start, e.end, e.eta);
 
-            for (int k = 0; k < e.routeLength; k++) {
+            for (int k = 0; k < e.routeLength; k++)
+            {
                 printf("\"%s\"%s", greenCorridor.getName(e.route[k]),
                        k < e.routeLength - 1 ? ", " : "");
             }
@@ -3239,8 +3287,9 @@ public:
         printf("  ],\n");
 
         printf("  \"phases\": [\n");
-        for (int i = 0; i < phaseLogCount; i++) {
-            const PhaseLog& p = phaseLog[i];
+        for (int i = 0; i < phaseLogCount; i++)
+        {
+            const PhaseLog &p = phaseLog[i];
             printf("    {\"cycle\": %d, \"direction\": \"%s\", \"green\": %d, \"start\": %d, "
                    "\"lanes\": [{\"name\": \"%s\", \"served\": %d}, {\"name\": \"%s\", \"served\": %d}]}%s\n",
                    p.cycle, p.phase == NORTH_SOUTH_PHASE ? "NORTH-SOUTH" : "EAST-WEST",
@@ -3265,8 +3314,9 @@ public:
         printf("  },\n");
 
         printf("  \"history\": [\n");
-        for (int i = 0; i < analytics.getRecordCount(); i++) {
-            const ServiceRecord& r = analytics.getRecord(i);
+        for (int i = 0; i < analytics.getRecordCount(); i++)
+        {
+            const ServiceRecord &r = analytics.getRecord(i);
             printf("    {\"id\": %d, \"lane\": \"%s\", \"type\": \"%s\", \"serviceTime\": %d, "
                    "\"wait\": %d, \"emergency\": %s}%s\n",
                    r.vehicleId, laneCodeName(r.laneCode), Vehicle::typeName(r.type),
@@ -3277,13 +3327,15 @@ public:
     }
 
     // No prompts, console text silenced, ONE JSON report printed at the end.
-    int runBatch(const char* fileName, int fixedGreenSeconds, bool fixedLane) {
+    int runBatch(const char *fileName, int fixedGreenSeconds, bool fixedLane)
+    {
         NullBuffer silent;
-        streambuf* original = cout.rdbuf(&silent);
+        streambuf *original = cout.rdbuf(&silent);
 
-        bool loaded = detector.useVisionFile(fileName);
+        bool loaded = detector.useInputFile(fileName);
 
-        if (!loaded) {
+        if (!loaded)
+        {
             cout.rdbuf(original);
             printf("{\"ok\": false, \"error\": \"cannot read detections file\"}\n");
             return 1;
@@ -3294,7 +3346,8 @@ public:
 
         int cycles = 0;
 
-        while (normalRemaining() > 0 && cycles < 1000) {
+        while (normalRemaining() > 0 && cycles < 1000)
+        {
             cycles++;
             currentCycle = cycles;
             runSignalCycle();
@@ -3308,7 +3361,8 @@ public:
         return 0;
     }
 
-    void run() {
+    void run()
+    {
         cout << "\n=== SMART TRAFFIC LIGHT OPTIMISER ===\n\n";
 
         detector.chooseMode();
@@ -3319,8 +3373,10 @@ public:
 
         int cycle = 1;
 
-        while (true) {
-            if (cycle > 1) {
+        while (true)
+        {
+            if (cycle > 1)
+            {
                 cout << "\n=== SIGNAL CYCLE " << cycle << " ===\n";
             }
 
@@ -3328,24 +3384,28 @@ public:
             displayFinalQueues();
             displaySummary();
 
-            if (normalRemaining() == 0) {
+            if (normalRemaining() == 0)
+            {
                 cout << "\nAll normal vehicles have been served.\n";
                 break;
             }
 
-            if (!readYesNo("\nRun another signal cycle?")) {
+            if (!readYesNo("\nRun another signal cycle?"))
+            {
                 break;
             }
 
             cycle++;
         }
 
-        if (readYesNo("\nCompare Fixed-timer vs Adaptive control (Module 6)?")) {
+        if (readYesNo("\nCompare Fixed-timer vs Adaptive control (Module 6)?"))
+        {
             comparison.setTraffic(laneCounts, emergencyCounts, usedPositions, emergencyKinds);
             comparison.compare(greenCorridor);
         }
 
-        if (readYesNo("\nShow detailed analytics (Module 5)?")) {
+        if (readYesNo("\nShow detailed analytics (Module 5)?"))
+        {
             detailedAnalytics();
         }
 
@@ -3355,22 +3415,23 @@ public:
 
 // MAIN FUNCTION
 
-
-int main(int argc, char* argv[]) {
+int main(int argc, char *argv[])
+{
     // Front end mode:  traffic --batch detections.txt [fixedGreenSeconds] [fixedRoadHasLane 0|1]
-    if (argc > 2 && strcmp(argv[1], "--batch") == 0) {
+    if (argc > 2 && strcmp(argv[1], "--batch") == 0)
+    {
         int fixedGreen = (argc > 3) ? atoi(argv[3]) : 30;
-        bool fixedLane = (argc > 4) && atoi(argv[4]) != 0;     // 1 = the fixed road also has the green corridor lane
+        bool fixedLane = (argc > 4) && atoi(argv[4]) != 0; // 1 = the fixed road also has the green corridor lane
         TrafficSimulation simulation;
         return simulation.runBatch(argv[2], fixedGreen, fixedLane);
     }
 
-    if (argc > 1) 
+    if (argc > 1)
     {
-        visionFileName = argv[1];
+        inputFileName = argv[1];
     }
 
-    do 
+    do
     {
         TrafficSimulation simulation;
         simulation.run();
