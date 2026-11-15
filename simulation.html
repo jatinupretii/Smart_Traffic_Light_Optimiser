@@ -796,6 +796,38 @@
       var LABEL_POS = [[C + 20, 16], [C - 20, 624], [596, C + 88], [44, C - 88]];
       var EM_OFF = 29;   // the green corridor lane sits this far outside the normal incoming lane
       var priorityOn = true;
+
+      // Turning: some vehicles turn left or right instead of going straight. Vehicles drive on the left, as in India:
+      // a left turn is a tight turn onto the nearest road, a right turn is a wide arc across the junction.
+      // Change the two percentages below (0 = every vehicle goes straight). Which vehicle turns is fixed by its number,
+      // so the same vehicle turns the same way on both junctions. Turning is only drawn; the timing is not changed.
+      var TURN_LEFT_PERCENT = 15, TURN_RIGHT_PERCENT = 15;
+      var BOX = 40, LEFT = 1, RIGHT = 2, TURN_R = [0, 20, 60];
+      function turnOf(v) {
+        if (v.emergency) { return 0; }                         // emergency vehicles keep to their lane and go straight
+        var h = (v.id * 37 + 11) % 100;
+        return h < TURN_LEFT_PERCENT ? LEFT : (h < TURN_LEFT_PERCENT + TURN_RIGHT_PERCENT ? RIGHT : 0);
+      }
+      // Position and rotation of a turning vehicle that is d from the centre along its arm (d gets smaller while it drives):
+      // straight to the edge of the junction box, then a quarter circle onto the outgoing lane of the other road.
+      function turnPath(a, turn, d) {
+        var arm = ARMS[a], s = BOX - d;
+        if (s <= 0) { var p = arm.pos(d); return { x: p[0], y: p[1], rot: 0 }; }
+        var p0 = arm.pos(BOX), q = arm.pos(BOX - 1), ux = q[0] - p0[0], uy = q[1] - p0[1];          // direction of travel
+        var wx = turn === LEFT ? uy : -uy, wy = turn === LEFT ? -ux : ux;                           // the side it turns to
+        var r = TURN_R[turn], len = Math.PI / 2 * r, cx = p0[0] + wx * r, cy = p0[1] + wy * r, x, y, hx, hy;
+        if (s <= len) {
+          var f = s / r, cs = Math.cos(f), sn = Math.sin(f);
+          x = cx + r * (-wx * cs + ux * sn); y = cy + r * (-wy * cs + uy * sn); hx = ux * cs + wx * sn; hy = uy * cs + wy * sn;
+        } else {
+          var t = s - len;
+          if (t > 300) { return null; }                         // far outside the picture
+          x = cx + ux * r + wx * t; y = cy + uy * r + wy * t; hx = wx; hy = wy;
+        }
+        var rot = Math.atan2(hy, hx) - Math.atan2(uy, ux);
+        if (rot > Math.PI) { rot -= 2 * Math.PI; } else if (rot < -Math.PI) { rot += 2 * Math.PI; }
+        return { x: x, y: y, rot: rot };
+      }
       var PALETTE = ["#d94f4f", "#4f8bd9", "#e8e8ea", "#3fb27f", "#9a6bd1", "#f28c38", "#2c3e50", "#c7b13a"];
       var SIZE = { car: [11, 15], bike: [6, 10], bus: [13, 16], truck: [13, 16], ambulance: [13, 16], firetruck: [14, 16], police: [11, 15] };
 
@@ -891,10 +923,11 @@
         });
       }
 
-      function drawVehicle(ctx, v, x, y, a, rt, tag) {
+      function drawVehicle(ctx, v, x, y, a, rt, tag, rot) {
         var sz = SIZE[v.type] || SIZE.car, vertical = ARMS[a].vertical;
         var W = vertical ? sz[0] : sz[1], H = vertical ? sz[1] : sz[0];
         ctx.save(); ctx.translate(x, y);
+        if (rot) { ctx.rotate(rot); }
         var body = "#999";
         if (v.type === "car") { body = PALETTE[v.id % PALETTE.length]; }
         else if (v.type === "bus") { body = "#f0a23b"; }
@@ -969,9 +1002,16 @@
           var j = normal[n], tau = simT - dep[j], adv = 0;
           for (k = 0; k < n; k++) { adv += clamp((dep[j] - dep[normal[k]]) / FADE, 0, 1); }
           var d = SLOT0 + SLOT_GAP * (n - adv) - 70 * tau;
-          if (d < EXIT_D) { return; }
-          var q = arm.pos(d);
-          drawVehicle(ctx, vehicles[j], q[0], q[1], a, rt, true);
+          var turn = turnOf(vehicles[j]);
+          if (turn === 0) {
+            if (d < EXIT_D) { return; }
+            var q = arm.pos(d);
+            drawVehicle(ctx, vehicles[j], q[0], q[1], a, rt, true);
+          } else {
+            var tp = turnPath(a, turn, d);
+            if (!tp) { return; }
+            drawVehicle(ctx, vehicles[j], tp.x, tp.y, a, rt, true, tp.rot);
+          }
         });
 
         // green corridor lane: emergency vehicles wait here, then cross the junction and merge back into the road
