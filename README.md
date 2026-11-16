@@ -87,7 +87,3 @@ g++ main.cpp -o traffic_backend.exe
   because the junction is held red for each emergency vehicle. Its emergency vehicles wait far less.
 - `simulation.html` contains a JavaScript copy of the C++ rules for the animation. With `server.py` running, each result is compared
   with the real C++ program; the two were also compared on randomly generated traffic during development.
-
-## History
-
-The Phase II backend is kept in the git history under the tag `phase-2-backend`.
