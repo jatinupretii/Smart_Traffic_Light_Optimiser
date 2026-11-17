@@ -1871,13 +1871,13 @@ bool findMinimumDistanceRoute(int source, int destination,
 
         printHeader("GREEN CORRIDOR ROUTE");
 
-        if (!findShortestRoute(source, destination, route, routeLength))
+       if (!findMinimumDistanceRoute(source, destination, route, routeLength))
         {
             cout << "No available route between those intersections.\n";
             return;
         }
 
-        cout << "Shortest route (fewest roads):\n  ";
+       cout << "Shortest route (minimum distance):\n  ";
 
         for (int i = 0; i < routeLength; i++)
         {
@@ -1943,8 +1943,8 @@ bool findMinimumDistanceRoute(int source, int destination,
     }
 };
 
-// PENDING (Phase III): Dijkstra shortest-distance route, DFS reachability
-// check, green-hold marking of corridor intersections, unblock road.
+// PENDING (Phase III): DFS reachability check and
+// green-hold marking of corridor intersections.
 
 
 // Module 5:: Analytics & Reports
@@ -2580,7 +2580,9 @@ private:
             int route[MAX_INTERSECTIONS];
             int routeLength = 0;
 
-            if (corridor.findShortestRoute(entryByLane[lane], emergencyDestination(kind), route, routeLength))
+            if (corridor.findMinimumDistanceRoute(entryByLane[lane],
+                                     emergencyDestination(kind),
+                                     route, routeLength))
             {
                 record(adaptiveResult, clock + SECONDS_PER_VEHICLE, kind); // crosses the stop line
                 clock += EMERGENCY_CROSSING_TIME;                          // junction held until it has cleared
@@ -3038,8 +3040,8 @@ private:
                  << emergency << " from "
                  << laneNames[lane] << " lane\n";
 
-            if (!greenCorridor.findShortestRoute(start, destination,
-                                                 route, routeLength))
+           if (!greenCorridor.findMinimumDistanceRoute(start, destination,
+                                            route, routeLength))
             {
                 emergencyRouteFailures++;
                 cout << "No open route. Vehicle needs an alternative plan.\n";
