@@ -1590,6 +1590,7 @@ private:
     int distanceMap[MAX_INTERSECTIONS][MAX_INTERSECTIONS]; // 0 = no road
     bool blocked[MAX_INTERSECTIONS][MAX_INTERSECTIONS];
     const char *intersectionNames[MAX_INTERSECTIONS];
+    bool greenHold[MAX_INTERSECTIONS];
 
     bool roadAvailable(int a, int b) const
     {
@@ -1618,6 +1619,7 @@ public:
         intersectionNames[7] = "Civil Lines";
         intersectionNames[8] = "Sports Complex";
         intersectionNames[9] = "Stadium Gate";
+        greenHold[i] = false;
     }
 
     bool validIntersection(int id) const
@@ -1851,6 +1853,45 @@ bool findMinimumDistanceRoute(int source, int destination,
     return true;
 }
 
+    // Recursive DFS helper to check destination reachability.
+    bool dfsVisit(int current, int destination,
+                  bool visited[]) const
+    {
+        visited[current] = true;
+
+        if (current == destination)
+        {
+            return true;
+        }
+
+        for (int next = 0; next < MAX_INTERSECTIONS; next++)
+        {
+            if (roadAvailable(current, next) && !visited[next])
+            {
+                if (dfsVisit(next, destination, visited))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    // Check whether a destination is reachable using DFS.
+    bool isReachableDFS(int source, int destination) const
+    {
+        if (!validIntersection(source) ||
+            !validIntersection(destination))
+        {
+            return false;
+        }
+
+        bool visited[MAX_INTERSECTIONS] = {false};
+
+        return dfsVisit(source, destination, visited);
+    }
+
 
     int pathDistance(const int route[], int length) const
     {
@@ -1863,13 +1904,50 @@ bool findMinimumDistanceRoute(int source, int destination,
 
         return total;
     }
+    // Mark all intersections on the emergency route.
+void markGreenCorridor(const int route[], int routeLength)
+{
+    clearGreenCorridor();
 
+    for (int i = 0; i < routeLength; i++)
+    {
+        if (validIntersection(route[i]))
+        {
+            greenHold[route[i]] = true;
+        }
+    }
+}
+
+    // Release all green-hold intersections.
+void clearGreenCorridor()
+{
+    for (int i = 0; i < MAX_INTERSECTIONS; i++)
+    {
+        greenHold[i] = false;
+    }
+}   
+
+    // Check whether an intersection is reserved.
+bool isGreenHold(int intersection) const
+{
+    if (!validIntersection(intersection))
+    {
+        return false;
+    }
+
+    return greenHold[intersection];
+}
     void displayRoute(int source, int destination) const
     {
         int route[MAX_INTERSECTIONS];
         int routeLength = 0;
 
         printHeader("GREEN CORRIDOR ROUTE");
+        if (!isReachableDFS(source, destination))
+    {
+    cout << "Destination is not reachable!\n";
+    return;
+    }
 
        if (!findMinimumDistanceRoute(source, destination, route, routeLength))
         {
