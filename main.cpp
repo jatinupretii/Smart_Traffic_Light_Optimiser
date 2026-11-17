@@ -1653,6 +1653,22 @@ public:
         blocked[to][from] = true;
         return true;
     }
+    
+// Unblock a previously blocked road
+bool unblockRoad(int from, int to)
+{
+    if (!validIntersection(from) || !validIntersection(to) ||
+        distanceMap[from][to] == 0)
+    {
+        return false;
+    }
+
+    blocked[from][to] = false;
+    blocked[to][from] = false;
+
+    return true;
+}
+
 
     void setupDemoNetwork()
     {
