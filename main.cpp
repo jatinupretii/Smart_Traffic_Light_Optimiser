@@ -1599,15 +1599,19 @@ private:
 
 public:
     GreenCorridor()
+{
+    for (int i = 0; i < MAX_INTERSECTIONS; i++)
     {
-        for (int i = 0; i < MAX_INTERSECTIONS; i++)
+        for (int j = 0; j < MAX_INTERSECTIONS; j++)
         {
-            for (int j = 0; j < MAX_INTERSECTIONS; j++)
-            {
-                distanceMap[i][j] = 0;
-                blocked[i][j] = false;
-            }
+            distanceMap[i][j] = 0;
+            blocked[i][j] = false;
         }
+
+        greenHold[i] = false;
+    }
+
+}
 
         intersectionNames[0] = "City Hospital";
         intersectionNames[1] = "Central Square";
@@ -3137,6 +3141,20 @@ private:
                     cout << " -> ";
                 }
             }
+            // Reserve all intersections along the emergency route.
+          greenCorridor.markGreenCorridor(route, routeLength);
+
+           cout << "Green corridor reserved: ";
+
+          for (int i = 0; i < routeLength; i++)
+{
+    if (greenCorridor.isGreenHold(route[i]))
+    {
+        cout << greenCorridor.getName(route[i]) << " ";
+    }
+}
+
+cout << '\n';
 
             int distance = greenCorridor.pathDistance(route, routeLength);
             cout << " (" << distance << " units)\n";
@@ -3172,6 +3190,10 @@ private:
             analytics.addRecord(emergency.getId(), 0, serviceTime,
                                 waitTime, true, emergency.getType());
             simulationClock = startTime + EMERGENCY_CROSSING_TIME;
+            // Release the reserved intersections.
+            greenCorridor.clearGreenCorridor();
+
+           cout << "Green corridor released.\n";
 
             cout << "Emergency vehicle " << emergency.getId()
                  << " crossed the junction from its green corridor lane (t = " << serviceTime
