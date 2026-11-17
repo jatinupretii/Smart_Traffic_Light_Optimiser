@@ -2030,7 +2030,6 @@ bool isGreenHold(int intersection) const
 
 
 // Module 5:: Analytics & Reports
-
 struct ServiceRecord
 {
     int vehicleId;
@@ -2359,6 +2358,7 @@ public:
         return "Module 5 - Analytics";
     }
 };
+
 
 // Module 6:: Fixed-Timer vs Adaptive Comparison
 
