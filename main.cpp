@@ -1754,6 +1754,103 @@ bool unblockRoad(int from, int to)
         routeLength = length;
         return true;
     }
+    
+// Dijkstra: route with the MINIMUM total distance.
+bool findMinimumDistanceRoute(int source, int destination,
+                              int route[], int &routeLength) const
+{
+    routeLength = 0;
+
+    if (!validIntersection(source) || !validIntersection(destination))
+    {
+        return false;
+    }
+
+    const int INF = 1000000000;
+
+    int dist[MAX_INTERSECTIONS];
+    int visited[MAX_INTERSECTIONS] = {0};
+    int parent[MAX_INTERSECTIONS];
+
+    // Initialize distances and parents.
+    for (int i = 0; i < MAX_INTERSECTIONS; i++)
+    {
+        dist[i] = INF;
+        parent[i] = -1;
+    }
+
+    dist[source] = 0;
+
+    // Process all reachable intersections.
+    for (int count = 0; count < MAX_INTERSECTIONS; count++)
+    {
+        int current = -1;
+        int minDistance = INF;
+
+        // Find the unvisited intersection with minimum distance.
+        for (int i = 0; i < MAX_INTERSECTIONS; i++)
+        {
+            if (!visited[i] && dist[i] < minDistance)
+            {
+                minDistance = dist[i];
+                current = i;
+            }
+        }
+
+        // No more reachable intersections.
+        if (current == -1)
+        {
+            break;
+        }
+
+        visited[current] = 1;
+
+        if (current == destination)
+        {
+            break;
+        }
+
+        // Update distances of neighbouring intersections.
+        for (int next = 0; next < MAX_INTERSECTIONS; next++)
+        {
+            if (roadAvailable(current, next) && !visited[next])
+            {
+                int newDistance = dist[current] + distanceMap[current][next];
+
+                if (newDistance < dist[next])
+                {
+                    dist[next] = newDistance;
+                    parent[next] = current;
+                }
+            }
+        }
+    }
+
+    if (dist[destination] == INF)
+    {
+        return false;
+    }
+
+    // Reconstruct the route using parent array.
+    int reversePath[MAX_INTERSECTIONS];
+    int length = 0;
+    int current = destination;
+
+    while (current != -1 && length < MAX_INTERSECTIONS)
+    {
+        reversePath[length++] = current;
+        current = parent[current];
+    }
+
+    for (int i = 0; i < length; i++)
+    {
+        route[i] = reversePath[length - 1 - i];
+    }
+
+    routeLength = length;
+    return true;
+}
+
 
     int pathDistance(const int route[], int length) const
     {
@@ -1848,6 +1945,7 @@ bool unblockRoad(int from, int to)
 
 // PENDING (Phase III): Dijkstra shortest-distance route, DFS reachability
 // check, green-hold marking of corridor intersections, unblock road.
+
 
 // Module 5:: Analytics & Reports
 
