@@ -3128,9 +3128,9 @@ GreenCorridor greenCorridor;
            if (!greenCorridor.findMinimumDistanceRoute(start, destination,
                                             route, routeLength))
             {
-                emergencyRouteFailures++;
-                cout << "No open route. Vehicle needs an alternative plan.\n";
-                continue;
+                   emergencyRouteFailures++;
+                   cout << "No open route. Vehicle needs an alternative plan.\n";
+                   continue;
             }
 
             cout << "Route: ";
