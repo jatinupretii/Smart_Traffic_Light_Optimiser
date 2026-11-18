@@ -2907,7 +2907,6 @@ enum LaneIdentifier
     EAST_LANE = 3,
     WEST_LANE = 4
 };
-
 class TrafficSimulation
 {
 private:
