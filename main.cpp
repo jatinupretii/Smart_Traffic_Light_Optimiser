@@ -2919,8 +2919,10 @@ private:
 
     PhaseController signalController;
     TrafficAnalyzer analyzer;
-    EmergencyManager emergencyManager;
-    GreenCorridor greenCorridor;
+    
+EmergencyManager emergencyManager;
+   
+GreenCorridor greenCorridor;
     PerformanceAnalytics analytics;
     VehicleDetector detector;
     StrategyComparison comparison;
