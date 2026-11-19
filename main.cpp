@@ -3800,8 +3800,9 @@ public:
     }
 };
 
-// MAIN FUNCTION
 
+
+// MAIN FUNCTION
 int main(int argc, char *argv[])
 {
     // Front end mode:  traffic --batch detections.txt [fixedGreenSeconds] [fixedRoadHasLane 0|1]
