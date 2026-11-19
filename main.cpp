@@ -3755,106 +3755,232 @@ cout << '\n';
 
     // ---------- REPORTS ----------
 
+   
+    // Displays the number of vehicles remaining in each directional queue.
+    // This helps monitor traffic distribution after the simulation ends.
     void displayFinalQueues() const
     {
-        cout << "\n--- FINAL QUEUE REPORT ---\n";
+        cout << "\n====================================\n";
+        cout << "          FINAL QUEUE REPORT\n";
+        cout << "====================================\n";
+
+        // Display the remaining vehicles in all four directions.
         cout << "North: " << north.getCount() << '\n';
         cout << "South: " << south.getCount() << '\n';
         cout << "East:  " << east.getCount() << '\n';
         cout << "West:  " << west.getCount() << '\n';
+
+        // Calculate total vehicles still waiting in directional queues.
+        int remainingVehicles =
+            north.getCount() +
+            south.getCount() +
+            east.getCount() +
+            west.getCount();
+
+        cout << "-------------------------------\n";
+        cout << "Vehicles in normal queues: "
+             << remainingVehicles << '\n';
     }
 
+
+    // Displays the overall performance of the traffic simulation.
+    // Combines normal traffic, emergency traffic and system statistics.
     void displaySummary() const
     {
-        int totalServed = analytics.getNormalServed() + analytics.getEmergencyServed();
+        // Calculate total vehicles successfully served.
+        int totalServed =
+            analytics.getNormalServed() +
+            analytics.getEmergencyServed();
 
-        cout << "\n--- SIMULATION PERFORMANCE SUMMARY ---\n";
-        cout << "Initial vehicles: " << totalInitialVehicles << '\n';
+        // Calculate all vehicles still waiting.
+        int remaining =
+            normalRemaining() + emergencyManager.getCount();
+
+        cout << "\n============================================\n";
+        cout << "       SIMULATION PERFORMANCE SUMMARY\n";
+        cout << "============================================\n";
+
+        // Display initial traffic information.
+        cout << "Initial vehicles: "
+             << totalInitialVehicles << '\n';
+
+        // Display emergency vehicle statistics.
         cout << "Emergency vehicles served: "
              << analytics.getEmergencyServed() << '\n';
+
+        // Display normal vehicle statistics.
         cout << "Normal vehicles served: "
              << analytics.getNormalServed() << '\n';
-        cout << "Total vehicles served: " << totalServed << '\n';
-        cout << "Normal vehicles remaining: " << normalRemaining() << '\n';
+
+        // Display combined vehicle processing statistics.
+        cout << "Total vehicles served: "
+             << totalServed << '\n';
+
+        // Display vehicles that have not yet crossed.
+        cout << "Normal vehicles remaining: "
+             << normalRemaining() << '\n';
+
         cout << "Total vehicles remaining: "
-             << normalRemaining() + emergencyManager.getCount() << '\n';
+             << remaining << '\n';
+
+        // Display emergency route failure information.
         cout << "Emergency route failures: "
              << emergencyRouteFailures << '\n';
+
+        // Display object creation statistics.
         cout << "Vehicle objects created: "
              << Vehicle::getCreatedCount() << '\n';
+
+        // Calculate the percentage of traffic successfully processed.
+        double clearance = 0.0;
+
+        if (totalInitialVehicles > 0)
+        {
+            clearance =
+                ((double)totalServed / totalInitialVehicles) * 100.0;
+        }
+
+        cout << "Traffic clearance: "
+             << clearance << "%\n";
+
+        // Determine whether the traffic simulation is complete.
+        if (remaining == 0)
+        {
+            cout << "Simulation Status: All vehicles cleared\n";
+        }
+        else
+        {
+            cout << "Simulation Status: Vehicles still waiting\n";
+        }
+
+        cout << "============================================\n";
     }
 
-    // Polymorphism: one loop calls each module's own displayReport().
+
+    // Demonstrates runtime polymorphism using the Reportable base class.
+    //
+    // Every module provides its own implementation of displayReport().
+    // The same function call invokes the correct module-specific report.
     void displayAllReports() const
     {
+        // Store pointers to all modules using their common base class.
         const Reportable *reports[] = {
             &north, &south, &east, &west,
             &signalController, &analyzer, &emergencyManager,
-            &greenCorridor, &analytics};
+            &greenCorridor, &analytics
+        };
 
+        // Display the main heading before printing module reports.
         printHeader("ALL MODULE REPORTS");
 
+        // Used to avoid repeatedly printing the same module heading.
         const char *lastModule = "";
 
+        // Visit every module and call its individual report function.
         for (int i = 0; i < 9; i++)
         {
+            // Compare the current module name with the previous one.
             if (strcmp(lastModule, reports[i]->moduleName()) != 0)
             {
-                cout << "\n-- " << reports[i]->moduleName() << " --\n";
+                cout << "\n-- "
+                     << reports[i]->moduleName()
+                     << " --\n";
+
                 lastModule = reports[i]->moduleName();
             }
 
+            // Runtime polymorphism:
+            // Calls the displayReport() implementation of the
+            // actual object instead of the base class version.
             reports[i]->displayReport();
         }
     }
 
+
+    // Provides detailed analytical information about the simulation.
+    // Also allows the user to explore service history and reports.
     void detailedAnalytics()
     {
+        // Display the latest 15 vehicle service records.
         analytics.displayServiceHistory(15);
+
+        // Display the overall analytics report.
         analytics.displayReport();
 
+        // Give the user an option to sort vehicle history.
         if (analytics.getRecordCount() > 0 &&
             readYesNo("\nSort history by wait time?"))
         {
+            // Display vehicle history in sorted waiting-time order.
             analytics.displaySortedHistory();
         }
 
+        // Allow the user to view reports from all system modules.
         if (readYesNo("\nShow all module reports?"))
         {
             displayAllReports();
         }
     }
 
+
 public:
+
+    // Constructor initializes the complete traffic simulation.
+    //
+    // It prepares all directional lanes, resets simulation counters,
+    // configures signal timing and initializes the emergency network.
     TrafficSimulation()
         : north("North"),
           south("South"),
           east("East"),
           west("West")
     {
+        // Initialize simulation time and vehicle counters.
         simulationClock = 0;
         totalInitialVehicles = 0;
+
+        // Reset emergency route failure tracking.
         emergencyRouteFailures = 0;
+
+        // Initialize report and logging counters.
         phaseLogCount = 0;
         emergencyLogCount = 0;
+
+        // Every simulation starts with the first cycle.
         currentCycle = 1;
 
+        // Initialize all four directional lane records.
         for (int i = 0; i < 4; i++)
         {
+            // Reset vehicle counts and starting IDs.
             laneCounts[i] = 0;
             laneStartId[i] = 0;
             emergencyCounts[i] = 0;
 
-            for (int k = 0; k < VehicleDetector::MAX_EMERGENCY_PER_LANE; k++)
+            // Reset emergency vehicle tracking information.
+            for (int k = 0;
+                 k < VehicleDetector::MAX_EMERGENCY_PER_LANE;
+                 k++)
             {
+                // No emergency positions are occupied initially.
                 usedPositions[i][k] = 0;
+
+                // Mark every emergency position as unknown.
                 emergencyKinds[i][k] = UNKNOWN;
             }
         }
 
-        // Green time = 3 s per vehicle of the longest lane,
-        // between 10 and 60 seconds.
+        // Configure adaptive green signal duration.
+        //
+        // Minimum green time = 10 seconds.
+        // Maximum green time = 60 seconds.
+        //
+        // The analyzer uses traffic conditions to determine
+        // a suitable green duration within these limits.
         analyzer.setGreenLimits(10, 60);
+
+        // Initialize the demonstration emergency corridor network.
+        // This prepares the routes used for emergency vehicle movement.
         greenCorridor.setupDemoNetwork();
     }
 
