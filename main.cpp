@@ -3687,125 +3687,300 @@ GreenCorridor greenCorridor;
         cout << "============================================\n";
     }
 
+   
     // ---------- STEP 2: EMERGENCY GREEN CORRIDOR ----------
 
+    // Processes emergency vehicles using the dedicated green corridor.
+    //
+    // The EmergencyManager uses priority-based extraction to select
+    // the most critical emergency vehicle first.
+    //
+    // Normal traffic signals remain RED while emergency vehicles
+    // are being processed to prevent conflicting traffic movement.
     void processEmergencyVehicles()
     {
+        // Check whether any emergency vehicles are waiting.
+        // If the priority manager is empty, no processing is required.
         if (emergencyManager.isEmpty())
         {
+            cout << "\nNo emergency vehicles waiting.\n";
             return;
         }
 
-        // Each lane has an entry point. In Phase II, all emergency
-        // vehicles use one common destination: City Hospital (node 0).
+        // Each direction has a predefined entry point in the road network.
+        //
+        // North = Node 1
+        // South = Node 3
+        // East  = Node 8
+        // West  = Node 5
+        //
+        // All emergency vehicles use their respective destinations,
+        // which are determined according to their vehicle category.
         const int entryByLane[4] = {1, 3, 8, 5};
-        const char *laneNames[4] = {"North", "South", "East", "West"};
 
-        cout << "\n--- GREEN CORRIDOR ACTIVE ---\n";
+        // Direction names used for displaying emergency vehicle information.
+        const char *laneNames[4] = {
+            "North", "South", "East", "West"
+        };
 
+        // Display corridor activation information.
+        cout << "\n============================================\n";
+        cout << "          GREEN CORRIDOR ACTIVE\n";
+        cout << "============================================\n";
+
+        // Switch all normal traffic signals to RED.
+        // This prevents normal vehicles from entering the intersection
+        // while an emergency vehicle is crossing.
         signalController.allRed();
+
         cout << "North-South signal: RED\n";
         cout << "East-West signal: RED\n";
+
+        // Display the number of emergency vehicles waiting.
         cout << "Emergency vehicles waiting: "
              << emergencyManager.getCount() << '\n';
 
+
+        // Temporary object used to receive the highest-priority vehicle.
         Vehicle emergency;
 
+        // Extract emergency vehicles one by one according to priority.
+        // The manager decides the order using its priority mechanism.
         while (emergencyManager.extractHighestPriority(emergency))
         {
+            // Identify the direction from which the vehicle originated.
             int lane = laneOfVehicle(emergency.getId());
-            int start = entryByLane[lane];
-            int destination = emergencyDestination(emergency.getType()); // depends on the vehicle type
 
+            // Retrieve the network entry point for that direction.
+            int start = entryByLane[lane];
+
+            // Determine the destination based on emergency vehicle type.
+            // For example, an ambulance may be routed to a hospital.
+            int destination =
+                emergencyDestination(emergency.getType());
+
+
+            // Array stores the sequence of intersections in the route.
             int route[MAX_INTERSECTIONS];
+
+            // Stores the total number of intersections in the route.
             int routeLength = 0;
 
-            // operator<< of Vehicle prints type, ID, arrival time and priority.
-            cout << "\n"
-                 << emergency << " from "
-                 << laneNames[lane] << " lane\n";
 
-           if (!greenCorridor.findMinimumDistanceRoute(start, destination,
-                                            route, routeLength))
+            // Display the emergency vehicle details.
+            // Vehicle's overloaded << operator prints its information,
+            // including ID, category, arrival time and priority.
+            cout << "\n--------------------------------------------\n";
+
+            cout << emergency
+                 << " from "
+                 << laneNames[lane]
+                 << " lane\n";
+
+
+            // Find the shortest available route between the entry
+            // point and the emergency vehicle's destination.
+            //
+            // The function returns FALSE if no valid route is available.
+            if (!greenCorridor.findMinimumDistanceRoute(
+                    start,
+                    destination,
+                    route,
+                    routeLength))
             {
-                   emergencyRouteFailures++;
-                   cout << "No open route. Vehicle needs an alternative plan.\n";
-                   continue;
+                // Increase the route failure counter.
+                emergencyRouteFailures++;
+
+                // Display an error message if routing is unsuccessful.
+                cout << "No open route available.\n";
+                cout << "Vehicle requires an alternative route plan.\n";
+
+                // Continue processing the next emergency vehicle.
+                continue;
             }
 
-            cout << "Route: ";
+
+            // ROUTE DISPLAY:
+            // Print the selected path from the starting node
+            // to the destination node.
+            cout << "Selected Route: ";
 
             for (int i = 0; i < routeLength; i++)
             {
                 cout << greenCorridor.getName(route[i]);
 
+                // Add an arrow between consecutive intersections.
                 if (i < routeLength - 1)
                 {
                     cout << " -> ";
                 }
             }
-            // Reserve all intersections along the emergency route.
-          greenCorridor.markGreenCorridor(route, routeLength);
 
-           cout << "Green corridor reserved: ";
+            cout << '\n';
 
-          for (int i = 0; i < routeLength; i++)
-{
-    if (greenCorridor.isGreenHold(route[i]))
-    {
-        cout << greenCorridor.getName(route[i]) << " ";
-    }
-}
 
-cout << '\n';
+            // GREEN CORRIDOR RESERVATION:
+            //
+            // Reserve all intersections along the selected emergency route.
+            // This prevents normal traffic from using those intersections
+            // while the emergency vehicle is being processed.
+            greenCorridor.markGreenCorridor(route, routeLength);
 
-            int distance = greenCorridor.pathDistance(route, routeLength);
-            cout << " (" << distance << " units)\n";
+            cout << "Green corridor reserved: ";
 
-            // The vehicle waits in the green corridor lane, so it crosses the stop line
-            // SECONDS_PER_VEHICLE after the signals turn red. The junction is released after
-            // EMERGENCY_CROSSING_TIME; the distance of the route does not block this junction.
+            // Display all intersections currently marked as reserved.
+            for (int i = 0; i < routeLength; i++)
+            {
+                if (greenCorridor.isGreenHold(route[i]))
+                {
+                    cout << greenCorridor.getName(route[i]) << " ";
+                }
+            }
+
+            cout << '\n';
+
+
+            // Calculate the total distance of the selected route.
+            // This distance is also used for estimating arrival time.
+            int distance =
+                greenCorridor.pathDistance(route, routeLength);
+
+            cout << "Total Route Distance: "
+                 << distance << " units\n";
+
+
+            // EMERGENCY TIMING CALCULATION:
+            //
+            // The emergency vehicle crosses the stop line after
+            // SECONDS_PER_VEHICLE seconds.
+            //
+            // The intersection remains reserved until the crossing
+            // time is completed.
+            //
+            // Route distance is used for destination ETA, not for
+            // calculating the time required to release the junction.
+
             int startTime = simulationClock;
-            int serviceTime = startTime + SECONDS_PER_VEHICLE;
-            int waitTime = serviceTime - emergency.getArrivalTime();
 
+            // Calculate when the emergency vehicle crosses the junction.
+            int serviceTime =
+                startTime + SECONDS_PER_VEHICLE;
+
+            // Calculate the total waiting time.
+            int waitTime =
+                serviceTime - emergency.getArrivalTime();
+
+
+            // EMERGENCY LOGGING:
+            //
+            // Save the details of the processed emergency vehicle
+            // for future reporting and performance analysis.
+            //
+            // Check the array limit before inserting a new log entry.
             if (emergencyLogCount < MAX_EMERGENCIES)
             {
-                EmergencyLog &log = emergencyLog[emergencyLogCount++];
+                // Access the next available emergency log position.
+                EmergencyLog &log =
+                    emergencyLog[emergencyLogCount++];
+
+                // Store basic vehicle information.
                 log.id = emergency.getId();
                 log.type = emergency.getType();
                 log.priority = emergency.getPriority();
+
+                // Store destination and original direction.
                 log.destination = destination;
                 log.lane = lane;
+
+                // Store route information.
                 log.distance = distance;
-                log.serviceTime = serviceTime;
-                log.start = startTime;
-                log.end = startTime + EMERGENCY_CROSSING_TIME;
-                log.eta = serviceTime + distance;
                 log.routeLength = routeLength;
 
+                // Store service and timing information.
+                log.serviceTime = serviceTime;
+                log.start = startTime;
+
+                // Record when the intersection reservation ends.
+                log.end =
+                    startTime + EMERGENCY_CROSSING_TIME;
+
+                // Estimate the time at which the vehicle reaches
+                // its final destination.
+                log.eta = serviceTime + distance;
+
+                // Save every intersection in the selected route.
                 for (int i = 0; i < routeLength; i++)
                 {
                     log.route[i] = route[i];
                 }
             }
 
-            analytics.addRecord(emergency.getId(), 0, serviceTime,
-                                waitTime, true, emergency.getType());
-            simulationClock = startTime + EMERGENCY_CROSSING_TIME;
-            // Release the reserved intersections.
+
+            // ANALYTICS UPDATE:
+            //
+            // Record the emergency vehicle's service information.
+            // The TRUE parameter identifies this as an emergency vehicle.
+            analytics.addRecord(
+                emergency.getId(),
+                0,
+                serviceTime,
+                waitTime,
+                true,
+                emergency.getType()
+            );
+
+
+            // Advance the simulation clock to the end of the
+            // emergency vehicle's intersection crossing period.
+            simulationClock =
+                startTime + EMERGENCY_CROSSING_TIME;
+
+
+            // RELEASE RESERVED INTERSECTIONS:
+            //
+            // Once the emergency vehicle has crossed the junction,
+            // remove the temporary green corridor reservation.
             greenCorridor.clearGreenCorridor();
 
-           cout << "Green corridor released.\n";
+            cout << "Green corridor released.\n";
 
-            cout << "Emergency vehicle " << emergency.getId()
-                 << " crossed the junction from its green corridor lane (t = " << serviceTime
-                 << " s, reaches its destination about t = " << serviceTime + distance << " s).\n";
+
+            // Display final vehicle processing information.
+            cout << "Emergency Vehicle ID: "
+                 << emergency.getId() << '\n';
+
+            cout << "Crossing Time: "
+                 << serviceTime << " seconds\n";
+
+            cout << "Estimated Destination Arrival: "
+                 << serviceTime + distance << " seconds\n";
+
+            cout << "Intersection Release Time: "
+                 << simulationClock << " seconds\n";
         }
+
+
+        // FINAL CORRIDOR STATUS:
+        //
+        // All emergency vehicles have been extracted from the
+        // priority manager and processed or recorded as route failures.
+        cout << "\n============================================\n";
+        cout << "       GREEN CORRIDOR PROCESSING COMPLETE\n";
+        cout << "============================================\n";
+
+        cout << "Emergency vehicles remaining: "
+             << emergencyManager.getCount() << '\n';
+
+        cout << "Total route failures: "
+             << emergencyRouteFailures << '\n';
+
+        cout << "Simulation Clock: "
+             << simulationClock << " seconds\n";
 
         cout << "Green Corridor is now CLEAR.\n";
         cout << "Normal traffic may resume.\n";
     }
+
 
     // ---------- STEP 3: NORMAL TRAFFIC ----------
 
