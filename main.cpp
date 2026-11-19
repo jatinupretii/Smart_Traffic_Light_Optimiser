@@ -2030,6 +2030,7 @@ bool isGreenHold(int intersection) const
 
 
 // Module 5:: Analytics & Reports
+
 struct ServiceRecord
 {
     int vehicleId;
@@ -2043,29 +2044,19 @@ struct ServiceRecord
 const char *laneCodeName(int code)
 {
     if (code == 0)
-    {
         return "Corridor";
-    }
 
     if (code == 1)
-    {
         return "North";
-    }
 
     if (code == 2)
-    {
         return "South";
-    }
 
     if (code == 3)
-    {
         return "East";
-    }
 
     if (code == 4)
-    {
         return "West";
-    }
 
     return "Unknown";
 }
@@ -2084,20 +2075,16 @@ private:
     int maximumWaitingTime;
     int minimumWaitingTime;
 
-    // Doubles the array size when it is full.
     bool resize(int newCapacity)
     {
         if (newCapacity <= capacity)
-        {
             return false;
-        }
 
-        ServiceRecord *newRecords = new (nothrow) ServiceRecord[newCapacity];
+        ServiceRecord *newRecords =
+            new (nothrow) ServiceRecord[newCapacity];
 
         if (newRecords == NULL)
-        {
             return false;
-        }
 
         for (int i = 0; i < recordCount; i++)
         {
@@ -2112,12 +2099,15 @@ private:
     }
 
 public:
+
     PerformanceAnalytics()
     {
         capacity = 10;
         recordCount = 0;
+
         normalVehiclesServed = 0;
         emergencyVehiclesServed = 0;
+
         totalWaitingTime = 0;
         maximumWaitingTime = 0;
         minimumWaitingTime = 0;
@@ -2130,8 +2120,8 @@ public:
         delete[] records;
     }
 
-    // Owns raw memory, so copying is forbidden (Rule of Three).
     PerformanceAnalytics(const PerformanceAnalytics &) = delete;
+
     PerformanceAnalytics &operator=(const PerformanceAnalytics &) = delete;
 
     int getRecordCount() const
@@ -2164,7 +2154,9 @@ public:
         return records[index];
     }
 
-    bool addRecord(int id, int lane, int serviceTime, int waitTime, bool emergency, VehicleType type = UNKNOWN)
+    bool addRecord(int id, int lane, int serviceTime,
+                   int waitTime, bool emergency,
+                   VehicleType type = UNKNOWN)
     {
         if (recordCount == capacity)
         {
@@ -2181,16 +2173,13 @@ public:
         records[recordCount].waitingTime = waitTime;
         records[recordCount].emergency = emergency;
         records[recordCount].type = type;
+
         recordCount++;
 
         if (emergency)
-        {
             emergencyVehiclesServed++;
-        }
         else
-        {
             normalVehiclesServed++;
-        }
 
         totalWaitingTime += waitTime;
 
@@ -2202,62 +2191,69 @@ public:
         else
         {
             if (waitTime < minimumWaitingTime)
-            {
                 minimumWaitingTime = waitTime;
-            }
 
             if (waitTime > maximumWaitingTime)
-            {
                 maximumWaitingTime = waitTime;
-            }
         }
 
         return true;
     }
 
+ 
     int linearSearchVehicle(int id) const
     {
         for (int i = 0; i < recordCount; i++)
         {
             if (records[i].vehicleId == id)
-            {
                 return i;
-            }
         }
 
         return -1;
     }
 
+  
     double averageWaitingTime() const
     {
         if (recordCount == 0)
-        {
             return 0.0;
-        }
 
         return static_cast<double>(totalWaitingTime) / recordCount;
     }
 
+  
     void searchAndDisplayVehicle(int id) const
     {
         int index = linearSearchVehicle(id);
 
         if (index == -1)
         {
-            cout << "Vehicle " << id << " not found in service history.\n";
+            cout << "Vehicle " << id
+                 << " not found in service history.\n";
             return;
         }
 
         cout << "\nVehicle history found:\n";
-        cout << "Vehicle ID: " << records[index].vehicleId << '\n';
-        cout << "Lane: " << laneCodeName(records[index].laneCode) << '\n';
-        cout << "Service time: " << records[index].serviceTime << "s\n";
-        cout << "Waiting time: " << records[index].waitingTime << "s\n";
-        cout << "Type: " << Vehicle::typeName(records[index].type) << '\n';
-        cout << "Emergency: " << (records[index].emergency ? "Yes" : "No") << '\n';
+
+        cout << "Vehicle ID: "
+             << records[index].vehicleId << '\n';
+
+        cout << "Lane: "
+             << laneCodeName(records[index].laneCode) << '\n';
+
+        cout << "Service time: "
+             << records[index].serviceTime << "s\n";
+
+        cout << "Waiting time: "
+             << records[index].waitingTime << "s\n";
+
+        cout << "Type: "
+             << Vehicle::typeName(records[index].type) << '\n';
+
+        cout << "Emergency: "
+             << (records[index].emergency ? "Yes" : "No") << '\n';
     }
 
-    // Bubble sort on a COPY, so the real history keeps its order.
     void displaySortedHistory() const
     {
         printHeader("HISTORY SORTED BY WAIT TIME (bubble sort)");
@@ -2268,7 +2264,8 @@ public:
             return;
         }
 
-        ServiceRecord *sorted = new (nothrow) ServiceRecord[recordCount];
+        ServiceRecord *sorted =
+            new (nothrow) ServiceRecord[recordCount];
 
         if (sorted == NULL)
         {
@@ -2277,9 +2274,7 @@ public:
         }
 
         for (int i = 0; i < recordCount; i++)
-        {
             sorted[i] = records[i];
-        }
 
         for (int i = 0; i < recordCount - 1; i++)
         {
@@ -2287,7 +2282,8 @@ public:
 
             for (int j = 0; j < recordCount - i - 1; j++)
             {
-                if (sorted[j].waitingTime > sorted[j + 1].waitingTime)
+                if (sorted[j].waitingTime >
+                    sorted[j + 1].waitingTime)
                 {
                     swapValues(sorted[j], sorted[j + 1]);
                     swapped = true;
@@ -2295,20 +2291,22 @@ public:
             }
 
             if (!swapped)
-            {
                 break;
-            }
         }
 
         for (int i = 0; i < recordCount; i++)
         {
-            cout << "Vehicle " << setw(5) << sorted[i].vehicleId << " | " << left << setw(9) << laneCodeName(sorted[i].laneCode) << right << " | Wait: " << sorted[i].waitingTime << "s\n";
+            cout << "Vehicle "
+                 << setw(5) << sorted[i].vehicleId
+                 << " | " << left << setw(9)
+                 << laneCodeName(sorted[i].laneCode)
+                 << right << " | Wait: "
+                 << sorted[i].waitingTime << "s\n";
         }
 
         delete[] sorted;
     }
 
-    // maxRows = -1 shows every record.
     void displayServiceHistory(int maxRows = -1) const
     {
         printHeader("SERVICE HISTORY");
@@ -2319,38 +2317,208 @@ public:
             return;
         }
 
-        cout << left << setw(12) << "Vehicle ID" << setw(12) << "Lane" << setw(19) << "Type" << setw(14) << "Service Time" << setw(12) << "Wait Time" << setw(10) << "Emergency" << right << '\n';
+        cout << left
+             << setw(12) << "Vehicle ID"
+             << setw(12) << "Lane"
+             << setw(19) << "Type"
+             << setw(14) << "Service Time"
+             << setw(12) << "Wait Time"
+             << setw(10) << "Emergency"
+             << right << '\n';
 
         int rows = recordCount;
 
         if (maxRows >= 0 && maxRows < recordCount)
-        {
             rows = maxRows;
-        }
 
         for (int i = 0; i < rows; i++)
         {
-            cout << left << setw(12) << records[i].vehicleId << setw(12) << laneCodeName(records[i].laneCode) << setw(19) << Vehicle::typeName(records[i].type) << setw(14) << records[i].serviceTime << setw(12) << records[i].waitingTime << setw(10) << (records[i].emergency ? "Yes" : "No") << right << '\n';
+            cout << left
+                 << setw(12) << records[i].vehicleId
+                 << setw(12) << laneCodeName(records[i].laneCode)
+                 << setw(19) << Vehicle::typeName(records[i].type)
+                 << setw(14) << records[i].serviceTime
+                 << setw(12) << records[i].waitingTime
+                 << setw(10)
+                 << (records[i].emergency ? "Yes" : "No")
+                 << right << '\n';
         }
 
         if (rows < recordCount)
         {
-            cout << "... " << recordCount - rows << " more records hidden.\n";
+            cout << "... " << recordCount - rows
+                 << " more records hidden.\n";
         }
     }
 
+    // NEW FEATURE 1: Lane-wise Waiting Time Analysis
+    void displayLaneAnalytics() const
+    {
+        int count[5] = {0};
+        int totalWait[5] = {0};
+
+        printHeader("LANE-WISE WAITING TIME ANALYSIS");
+
+        for (int i = 0; i < recordCount; i++)
+        {
+            int lane = records[i].laneCode;
+
+            if (lane >= 1 && lane <= 4)
+            {
+                count[lane]++;
+                totalWait[lane] += records[i].waitingTime;
+            }
+        }
+
+        for (int i = 1; i <= 4; i++)
+        {
+            cout << "\n" << laneCodeName(i) << " Lane\n";
+
+            cout << "Vehicles Served: "
+                 << count[i] << '\n';
+
+            if (count[i] > 0)
+            {
+                cout << "Average Waiting Time: "
+                     << fixed << setprecision(2)
+                     << (double)totalWait[i] / count[i]
+                     << " seconds\n";
+            }
+            else
+            {
+                cout << "No vehicles served.\n";
+            }
+        }
+    }
+
+    void displayBusiestLane() const
+    {
+        int count[5] = {0};
+
+        printHeader("BUSIEST LANE DETECTION");
+
+        for (int i = 0; i < recordCount; i++)
+        {
+            int lane = records[i].laneCode;
+
+            if (lane >= 1 && lane <= 4)
+                count[lane]++;
+        }
+
+        int maximum = 0;
+
+        for (int i = 1; i <= 4; i++)
+        {
+            if (count[i] > maximum)
+                maximum = count[i];
+        }
+
+        if (maximum == 0)
+        {
+            cout << "No lane data available.\n";
+            return;
+        }
+
+        cout << "Busiest Lane(s):\n";
+
+        for (int i = 1; i <= 4; i++)
+        {
+            if (count[i] == maximum)
+            {
+                cout << laneCodeName(i)
+                     << " Lane - "
+                     << count[i] << " vehicles\n";
+            }
+        }
+    }
+
+
+    void displayEmergencyStatistics() const
+    {
+        int emergencyWait = 0;
+        int emergencyCount = 0;
+
+        int normalWait = 0;
+        int normalCount = 0;
+
+        printHeader("EMERGENCY VEHICLE STATISTICS");
+
+        for (int i = 0; i < recordCount; i++)
+        {
+            if (records[i].emergency)
+            {
+                emergencyWait += records[i].waitingTime;
+                emergencyCount++;
+            }
+            else
+            {
+                normalWait += records[i].waitingTime;
+                normalCount++;
+            }
+        }
+
+        cout << "Emergency Vehicles Served: "
+             << emergencyCount << '\n';
+
+        cout << "Normal Vehicles Served: "
+             << normalCount << '\n';
+
+        if (emergencyCount > 0)
+        {
+            cout << "Average Emergency Waiting Time: "
+                 << fixed << setprecision(2)
+                 << (double)emergencyWait / emergencyCount
+                 << " seconds\n";
+        }
+        else
+        {
+            cout << "No emergency vehicle records.\n";
+        }
+
+        if (normalCount > 0)
+        {
+            cout << "Average Normal Waiting Time: "
+                 << fixed << setprecision(2)
+                 << (double)normalWait / normalCount
+                 << " seconds\n";
+        }
+        else
+        {
+            cout << "No normal vehicle records.\n";
+        }
+    }
+
+    // Complete Analytics Report
     void displayReport() const
     {
-        cout << "Normal vehicles served: " << normalVehiclesServed << '\n';
-        cout << "Emergency vehicles served: " << emergencyVehiclesServed << '\n';
-        cout << "Total vehicles served: " << recordCount << '\n';
-        cout << "Average waiting time: " << fixed << setprecision(2) << averageWaitingTime() << " seconds\n";
+        printHeader("PERFORMANCE ANALYTICS REPORT");
+
+        cout << "Normal vehicles served: "
+             << normalVehiclesServed << '\n';
+
+        cout << "Emergency vehicles served: "
+             << emergencyVehiclesServed << '\n';
+
+        cout << "Total vehicles served: "
+             << recordCount << '\n';
+
+        cout << "Average waiting time: "
+             << fixed << setprecision(2)
+             << averageWaitingTime()
+             << " seconds\n";
 
         if (recordCount > 0)
         {
-            cout << "Minimum wait: " << minimumWaitingTime << " seconds\n";
-            cout << "Maximum wait: " << maximumWaitingTime << " seconds\n";
+            cout << "Minimum wait: "
+                 << minimumWaitingTime << " seconds\n";
+
+            cout << "Maximum wait: "
+                 << maximumWaitingTime << " seconds\n";
         }
+
+        displayLaneAnalytics();
+        displayBusiestLane();
+        displayEmergencyStatistics();
     }
 
     const char *moduleName() const
