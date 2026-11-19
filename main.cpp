@@ -3461,75 +3461,230 @@ GreenCorridor greenCorridor;
 
     // ---------- STEP 1: DETECTION ----------
 
+
+    // Detects vehicles in all four directions using the traffic detector.
+    //
+    // This function performs two major operations:
+    // 1. Detects the total number of vehicles in each lane.
+    // 2. Identifies emergency vehicles and transfers them
+    //    from normal queues to the emergency priority manager.
     void detectTraffic()
     {
-        const char *names[4] = {"North", "South", "East", "West"};
+        // Names of all four traffic directions.
+        const char *names[4] = {
+            "North", "South", "East", "West"
+        };
 
-        // Sensor 1: vehicle count per lane.
+        // Offset maintains unique vehicle IDs across all directions.
+        // This ensures that no two vehicles receive the same ID.
         int offset = 0;
 
+        // SENSOR 1: Detect the number of vehicles in each direction.
         for (int lane = 0; lane < 4; lane++)
         {
-            laneCounts[lane] = detector.detectVehicles(names[lane]);
+            // Detect the vehicle count using the traffic detector.
+            laneCounts[lane] =
+                detector.detectVehicles(names[lane]);
+
+            // Store the starting ID offset for the current lane.
             laneStartId[lane] = offset;
+
+            // Update offset for assigning unique IDs to the next lane.
             offset += laneCounts[lane];
         }
 
+        // Store the total number of vehicles detected.
         totalInitialVehicles = offset;
 
-        // Create the vehicle objects. IDs run 1..N across all lanes.
+
+        // VEHICLE GENERATION:
+        // Create vehicle objects and insert them into their
+        // respective directional queues.
+        //
+        // Vehicle IDs run continuously from 1 to N across all lanes.
         for (int lane = 0; lane < 4; lane++)
         {
+            // Process every detected vehicle in the current lane.
             for (int i = 0; i < laneCounts[lane]; i++)
             {
-                VehicleType kind = detector.vehicleTypeAt(names[lane], i);
+                // Identify the vehicle category.
+                VehicleType kind =
+                    detector.vehicleTypeAt(names[lane], i);
+
+                // Generate a vehicle with a unique ID and zero initial wait.
+                // Insert it into the corresponding directional queue.
                 laneByCode(lane + 1).addVehicle(
-                    Vehicle(laneStartId[lane] + i + 1, kind, 0));
+                    Vehicle(
+                        laneStartId[lane] + i + 1,
+                        kind,
+                        0
+                    )
+                );
             }
         }
 
-        // Sensor 2: how many sirens in each lane.
+
+        // SENSOR 2: Detect the number of emergency vehicles.
+        //
+        // This sensor identifies siren-equipped vehicles
+        // independently in each traffic direction.
         for (int lane = 0; lane < 4; lane++)
         {
             emergencyCounts[lane] =
-                detector.detectEmergencies(names[lane], laneCounts[lane]);
+                detector.detectEmergencies(
+                    names[lane],
+                    laneCounts[lane]
+                );
         }
 
-        // For every siren: which vehicle is it? Move it out of the
-        // normal queue and into the emergency priority heap.
+
+        // EMERGENCY IDENTIFICATION AND TRANSFER:
+        //
+        // Every detected emergency vehicle is identified by its
+        // position and category, then removed from the normal queue.
+        //
+        // After successful removal, it is inserted into the
+        // emergency priority manager for priority-based processing.
         for (int lane = 0; lane < 4; lane++)
         {
+            // Process all emergency vehicles detected in this lane.
             for (int k = 0; k < emergencyCounts[lane]; k++)
             {
+                // Detect the exact position of the emergency vehicle.
                 int position = detector.detectEmergencyPosition(
-                    names[lane], laneCounts[lane], usedPositions[lane], k);
+                    names[lane],
+                    laneCounts[lane],
+                    usedPositions[lane],
+                    k
+                );
+
+                // Save the detected position for future reference.
                 usedPositions[lane][k] = position;
 
-                // Which kind is it: ambulance, fire truck or police car?
-                VehicleType emergencyKind = detector.detectEmergencyKind(names[lane], position);
+
+                // Identify the emergency vehicle category.
+                // Possible types include ambulance, fire truck and police car.
+                VehicleType emergencyKind =
+                    detector.detectEmergencyKind(
+                        names[lane],
+                        position
+                    );
+
+                // Store the category in the emergency tracking array.
                 emergencyKinds[lane][k] = emergencyKind;
 
-                int globalId = laneStartId[lane] + position;
-                Vehicle removed;
-                bool found = laneByCode(lane + 1).extractVehicleById(
-                    globalId, removed);
 
+                // Calculate the globally unique vehicle ID.
+                //
+                // laneStartId gives the starting offset.
+                // position gives the vehicle's position in its lane.
+                int globalId = laneStartId[lane] + position;
+
+
+                // Temporary object used to receive the extracted vehicle.
+                Vehicle removed;
+
+                // Remove the emergency vehicle from the normal queue.
+                bool found =
+                    laneByCode(lane + 1).extractVehicleById(
+                        globalId,
+                        removed
+                    );
+
+
+                // Transfer only if the vehicle was successfully extracted.
                 if (found)
                 {
+                    // Insert the emergency vehicle into the priority manager.
+                    // The manager handles emergency dispatch according
+                    // to the vehicle's assigned priority.
                     emergencyManager.insertEmergency(
-                        Vehicle(globalId, emergencyKind, 0));
+                        Vehicle(globalId, emergencyKind, 0)
+                    );
+                }
+                else
+                {
+                    // Record a transfer failure if the vehicle
+                    // could not be found in its original queue.
+                    emergencyRouteFailures++;
                 }
             }
         }
+
+
+        // DETECTION SUMMARY:
+        // Calculate the total number of emergency vehicles detected.
+        int totalEmergencies = 0;
+
+        for (int lane = 0; lane < 4; lane++)
+        {
+            totalEmergencies += emergencyCounts[lane];
+        }
+
+        // Display a short overview of the detection operation.
+        cout << "\n--- TRAFFIC DETECTION SUMMARY ---\n";
+
+        cout << "Total vehicles detected: "
+             << totalInitialVehicles << '\n';
+
+        cout << "Emergency vehicles detected: "
+             << totalEmergencies << '\n';
+
+        cout << "Normal vehicles detected: "
+             << totalInitialVehicles - totalEmergencies << '\n';
+
+        cout << "Emergency transfer failures: "
+             << emergencyRouteFailures << '\n';
+
+        cout << "Traffic directions monitored: 4\n";
     }
 
+
+    // Displays the initial traffic distribution after emergency vehicles
+    // have been transferred into the separate emergency priority system.
+    //
+    // This report helps understand how much normal traffic remains
+    // in each directional lane before signal processing begins.
     void displayInitialQueues() const
     {
-        cout << "\n--- INITIAL TRAFFIC AFTER EMERGENCY TRANSFER ---\n";
-        cout << "North normal queue: " << north.getCount() << '\n';
-        cout << "South normal queue: " << south.getCount() << '\n';
-        cout << "East normal queue:  " << east.getCount() << '\n';
-        cout << "West normal queue:  " << west.getCount() << '\n';
+        cout << "\n============================================\n";
+        cout << "       INITIAL TRAFFIC DISTRIBUTION\n";
+        cout << "============================================\n";
+
+        // Display normal vehicle count in each direction.
+        cout << "North normal queue: "
+             << north.getCount() << '\n';
+
+        cout << "South normal queue: "
+             << south.getCount() << '\n';
+
+        cout << "East normal queue:  "
+             << east.getCount() << '\n';
+
+        cout << "West normal queue:  "
+             << west.getCount() << '\n';
+
+
+        // Calculate the total number of normal vehicles remaining.
+        int normalTotal =
+            north.getCount() +
+            south.getCount() +
+            east.getCount() +
+            west.getCount();
+
+        // Display the combined normal queue count.
+        cout << "--------------------------------------------\n";
+
+        cout << "Total normal vehicles: "
+             << normalTotal << '\n';
+
+        cout << "Emergency vehicles transferred: "
+             << emergencyManager.getCount() << '\n';
+
+        cout << "Original traffic count: "
+             << totalInitialVehicles << '\n';
+
+        cout << "============================================\n";
     }
 
     // ---------- STEP 2: EMERGENCY GREEN CORRIDOR ----------
