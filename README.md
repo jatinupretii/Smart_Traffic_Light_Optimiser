@@ -1,9 +1,6 @@
 # Smart Traffic Light Optimiser
 
-An adaptive traffic signal that sets the **green time from the number of vehicles waiting in each lane**,
-with a dedicated **green corridor lane** and top priority for emergency vehicles.
-A web simulation shows a normal fixed-timer road and the adaptive road side by side for the same traffic.
-
+An intelligent traffic management system that dynamically calculates green light durations based on real-time vehicle density in each lane. Built to reduce urban congestion, it features a dedicated green corridor lane, top-priority preemption for emergency vehicles, and an interactive side-by-side web simulation comparing traditional fixed-timer intersections against the adaptive model.
 ## The idea
 
 | | Fixed timer | Adaptive system (this project) |
