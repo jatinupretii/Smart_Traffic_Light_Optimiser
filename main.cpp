@@ -3982,105 +3982,489 @@ GreenCorridor greenCorridor;
     }
 
 
-    // ---------- STEP 3: NORMAL TRAFFIC ----------
+  
+    // ============================================================
+    // STEP 3: NORMAL TRAFFIC MANAGEMENT
+    // ============================================================
+    // This section handles the movement of normal vehicles after
+    // emergency vehicles have been processed.
+    //
+    // The complete traffic junction has four lanes:
+    // North, South, East and West.
+    //
+    // Two lanes are allowed to move together in one phase:
+    // 1. North-South phase: North and South lanes get GREEN.
+    // 2. East-West phase: East and West lanes get GREEN.
+    //
+    // Vehicles in the opposite direction remain stopped while
+    // the current phase is active.
+    // ============================================================
 
-    // Lanes of one direction move side by side: every lane can pass
-    // one vehicle every SECONDS_PER_VEHICLE seconds.
+
+    // ------------------------------------------------------------
+    // FUNCTION: serveLane()
+    // PURPOSE:
+    // Serves normal vehicles from a particular lane according to
+    // the number of available service slots.
+    //
+    // PARAMETERS:
+    // lane     : Reference to the lane being processed.
+    // laneCode : Unique code representing the lane direction.
+    // slots    : Maximum number of vehicles that can pass.
+    //
+    // RETURN:
+    // Total number of vehicles successfully served.
+    // ------------------------------------------------------------
+
     int serveLane(Lane &lane, int laneCode, int slots)
     {
+        // Stores the number of vehicles that have crossed.
         int served = 0;
+
+        // Temporary object used to receive each served vehicle.
         Vehicle vehicle;
 
+        // Continue serving vehicles while:
+        // 1. The lane has not reached its maximum service slots.
+        // 2. The lane still contains waiting vehicles.
         while (served < slots && lane.serveVehicle(vehicle))
         {
+            // One vehicle has successfully crossed the junction.
             served++;
 
-            int serviceTime = simulationClock + served * analyzer.getSecondsPerVehicle();
+            // Calculate the service time of the current vehicle.
+            // Each vehicle takes a fixed amount of time to cross.
+            //
+            // simulationClock represents the starting time of
+            // the current traffic phase.
+            int serviceTime = simulationClock +
+                              served * analyzer.getSecondsPerVehicle();
+
+            // Waiting time is the difference between the time
+            // at which the vehicle is served and its arrival time.
             int waitTime = serviceTime - vehicle.getArrivalTime();
 
-            analytics.addRecord(vehicle.getId(), laneCode, serviceTime,
-                                waitTime, false, vehicle.getType());
+            // Store the vehicle's service details in the analytics
+            // module for future performance calculations.
+            //
+            // Parameters:
+            // Vehicle ID, lane code, service time, waiting time,
+            // emergency status and vehicle type.
+            analytics.addRecord(
+                vehicle.getId(),
+                laneCode,
+                serviceTime,
+                waitTime,
+                false,
+                vehicle.getType()
+            );
+
+            // Display individual vehicle processing information.
+            cout << "  Vehicle ID: " << vehicle.getId()
+                 << " | Type: " << vehicle.getType()
+                 << " | Waiting Time: " << waitTime
+                 << " seconds"
+                 << " | Service Time: " << serviceTime
+                 << " seconds\n";
         }
 
+        // Return the total number of vehicles served from this lane.
         return served;
     }
 
+
+    // ------------------------------------------------------------
+    // FUNCTION: runPhase()
+    // PURPOSE:
+    // Executes one complete traffic signal phase.
+    //
+    // A phase represents a fixed period during which two
+    // compatible traffic directions receive GREEN signals.
+    //
+    // The function:
+    // 1. Identifies the lanes belonging to the phase.
+    // 2. Checks whether vehicles are waiting.
+    // 3. Activates the traffic signal.
+    // 4. Calculates vehicle service capacity.
+    // 5. Serves vehicles from both lanes.
+    // 6. Records phase statistics.
+    // 7. Changes the signal to YELLOW and then RED.
+    // 8. Updates the simulation clock.
+    // ------------------------------------------------------------
+
     void runPhase(TrafficPhase phase, int greenTime)
     {
-        const char *phaseName = (phase == NORTH_SOUTH_PHASE)
-                                    ? "NORTH-SOUTH"
-                                    : "EAST-WEST";
-        Lane &first = (phase == NORTH_SOUTH_PHASE) ? north : east;
-        Lane &second = (phase == NORTH_SOUTH_PHASE) ? south : west;
-        int firstCode = (phase == NORTH_SOUTH_PHASE) ? NORTH_LANE : EAST_LANE;
-        int secondCode = (phase == NORTH_SOUTH_PHASE) ? SOUTH_LANE : WEST_LANE;
+        // Determine the name of the current traffic phase.
+        const char *phaseName =
+            (phase == NORTH_SOUTH_PHASE)
+                ? "NORTH-SOUTH"
+                : "EAST-WEST";
 
-        cout << '\n';
+        // Select the two lanes that are allowed to move together.
+        //
+        // North-South phase:
+        // first  = North
+        // second = South
+        //
+        // East-West phase:
+        // first  = East
+        // second = West
+        Lane &first =
+            (phase == NORTH_SOUTH_PHASE) ? north : east;
 
+        Lane &second =
+            (phase == NORTH_SOUTH_PHASE) ? south : west;
+
+        // Assign lane codes for recording traffic statistics.
+        int firstCode =
+            (phase == NORTH_SOUTH_PHASE) ? NORTH_LANE : EAST_LANE;
+
+        int secondCode =
+            (phase == NORTH_SOUTH_PHASE) ? SOUTH_LANE : WEST_LANE;
+
+        cout << "\n";
+        cout << "============================================\n";
+        cout << "        " << phaseName << " SIGNAL PHASE\n";
+        cout << "============================================\n";
+
+        // Before activating the signal, check whether both lanes
+        // are empty.
+        //
+        // If there are no vehicles waiting in either lane, there
+        // is no need to waste green signal time on this phase.
         if (first.isEmpty() && second.isEmpty())
         {
-            cout << phaseName << " has no waiting vehicles. Phase skipped.\n";
+            cout << phaseName
+                 << " has no waiting vehicles.\n";
+
+            cout << "Green signal is not required.\n";
+            cout << "Phase skipped to avoid unnecessary delay.\n";
+
             return;
         }
 
+        // Activate the selected signal phase.
+        // The SignalController manages the signal state changes.
         signalController.activatePhase(phase);
 
-        cout << phaseName << " GREEN for " << greenTime << " seconds\n";
-        cout << "Other signal: RED\n";
+        cout << "\nActive Phase: " << phaseName << '\n';
+        cout << "Green Signal Duration: "
+             << greenTime << " seconds\n";
 
-        int slots = greenTime / analyzer.getSecondsPerVehicle();
+        cout << "Active Lanes:\n";
+        cout << "  " << first.getName() << " - GREEN\n";
+        cout << "  " << second.getName() << " - GREEN\n";
+
+        cout << "Opposite Direction - RED\n";
+
+        // Calculate how many vehicles can pass during the green
+        // signal duration.
+        //
+        // For example:
+        // If greenTime = 30 seconds and each vehicle requires
+        // 3 seconds, then 10 vehicles can be served per lane.
+        //
+        // Both lanes can operate simultaneously, so each lane
+        // receives its own service capacity.
+        int secondsPerVehicle = analyzer.getSecondsPerVehicle();
+
+        // Avoid division by zero if an invalid service duration
+        // is returned by the analyzer.
+        if (secondsPerVehicle <= 0)
+        {
+            cout << "Invalid vehicle service duration.\n";
+
+            signalController.finishPhase();
+            return;
+        }
+
+        int slots = greenTime / secondsPerVehicle;
+
+        cout << "\nTraffic Processing Details:\n";
+        cout << "Time required per vehicle: "
+             << secondsPerVehicle << " seconds\n";
+
+        cout << "Maximum vehicles per lane: "
+             << slots << '\n';
+
+        cout << "Processing " << first.getName()
+             << " lane...\n";
+
+        // Serve vehicles from the first lane.
         int servedFirst = serveLane(first, firstCode, slots);
+
+        cout << "\nProcessing " << second.getName()
+             << " lane...\n";
+
+        // Serve vehicles from the second lane.
+        // Both lanes have independent service slots because
+        // they are moving simultaneously.
         int servedSecond = serveLane(second, secondCode, slots);
 
+        // Calculate the total number of vehicles served in
+        // this phase for reporting purposes.
+        int totalServed = servedFirst + servedSecond;
+
+        // Store the phase information for future analysis.
+        //
+        // The fixed array has a capacity of 100 phase records.
+        // This check prevents writing beyond its capacity.
         if (phaseLogCount < 100)
         {
             PhaseLog &log = phaseLog[phaseLogCount++];
+
+            // Store the simulation cycle number.
             log.cycle = currentCycle;
+
+            // Store the phase type.
             log.phase = phase;
+
+            // Store the allocated green signal duration.
             log.green = greenTime;
+
+            // Record the phase starting time.
             log.start = simulationClock;
+
+            // Store the lane codes.
             log.laneA = firstCode;
             log.laneB = secondCode;
+
+            // Store the number of vehicles served in each lane.
             log.servedA = servedFirst;
             log.servedB = servedSecond;
         }
+        else
+        {
+            cout << "\nWarning: Phase log capacity reached.\n";
+        }
 
-        cout << first.getName() << ": " << servedFirst
-             << " vehicles served\n";
-        cout << second.getName() << ": " << servedSecond
-             << " vehicles served\n";
+        // Display the final processing results of this phase.
+        cout << "\n--------------- PHASE REPORT ---------------\n";
 
-        cout << phaseName << " YELLOW\n";
+        cout << first.getName() << " Lane:\n";
+        cout << "  Vehicles served: " << servedFirst << '\n';
+        cout << "  Vehicles remaining: "
+             << first.getCount() << '\n';
+
+        cout << second.getName() << " Lane:\n";
+        cout << "  Vehicles served: " << servedSecond << '\n';
+        cout << "  Vehicles remaining: "
+             << second.getCount() << '\n';
+
+        cout << "Total vehicles served in this phase: "
+             << totalServed << '\n';
+
+        // Change the signal from GREEN to YELLOW.
+        // This warns vehicles that the green phase is ending.
+        cout << "\n" << phaseName << " YELLOW\n";
+
+        // Finish the current phase through the signal controller.
+        // This also handles the signal transition state.
         signalController.finishPhase();
+
+        // Display the final RED state.
         cout << phaseName << " RED\n";
 
-        simulationClock += greenTime + PhaseController::transitionTime();
+        // Update the simulation clock.
+        //
+        // The clock advances by the allocated green duration
+        // plus the required signal transition time.
+        //
+        // This ensures that the next phase starts after the
+        // current phase has completely finished.
+        int transition = PhaseController::transitionTime();
+
+        simulationClock += greenTime + transition;
+
+        cout << "Green Time Used: "
+             << greenTime << " seconds\n";
+
+        cout << "Signal Transition Time: "
+             << transition << " seconds\n";
+
+        cout << "Simulation Clock: "
+             << simulationClock << " seconds\n";
+
+        cout << "============================================\n";
     }
+
+
+    // ------------------------------------------------------------
+    // FUNCTION: runSignalCycle()
+    // PURPOSE:
+    // Controls one complete normal traffic signal cycle.
+    //
+    // A complete cycle consists of:
+    // 1. North-South phase.
+    // 2. East-West phase.
+    //
+    // The order is selected dynamically using the traffic
+    // analyzer instead of always following a fixed sequence.
+    //
+    // Green signal duration is also calculated dynamically
+    // according to the number of waiting vehicles.
+    // ------------------------------------------------------------
 
     void runSignalCycle()
     {
-        // Green time follows the longest lane of each direction.
-        int nsGreen = analyzer.calculateGreenTime(
-            north.getCount() > south.getCount() ? north.getCount()
-                                                : south.getCount());
-        int ewGreen = analyzer.calculateGreenTime(
-            east.getCount() > west.getCount() ? east.getCount()
-                                              : west.getCount());
+        cout << "\n\n";
+        cout << "********************************************\n";
+        cout << "          TRAFFIC SIGNAL CYCLE\n";
+        cout << "********************************************\n";
 
-        TrafficPhase first = analyzer.choosePhase(northSouthCount(),
-                                                  eastWestCount());
-        TrafficPhase second = (first == NORTH_SOUTH_PHASE)
-                                  ? EAST_WEST_PHASE
-                                  : NORTH_SOUTH_PHASE;
+        // Display the current cycle number.
+        cout << "Cycle Number: " << currentCycle << '\n';
 
-        cout << "\nSelected phase: "
-             << (first == NORTH_SOUTH_PHASE ? "NORTH-SOUTH" : "EAST-WEST")
+        // --------------------------------------------------------
+        // STEP 1: CALCULATE TRAFFIC DENSITY
+        // --------------------------------------------------------
+        // The analyzer checks the number of waiting vehicles
+        // in each direction.
+        //
+        // The lane with the larger queue determines the green
+        // time required for that particular direction.
+        // --------------------------------------------------------
+
+        int northCount = north.getCount();
+        int southCount = south.getCount();
+
+        int eastCount = east.getCount();
+        int westCount = west.getCount();
+
+        // Use the larger queue of the North and South lanes.
+        int northSouthMax =
+            (northCount > southCount)
+                ? northCount
+                : southCount;
+
+        // Use the larger queue of the East and West lanes.
+        int eastWestMax =
+            (eastCount > westCount)
+                ? eastCount
+                : westCount;
+
+        cout << "\nCurrent Traffic Density:\n";
+
+        cout << "North: " << northCount << " vehicles\n";
+        cout << "South: " << southCount << " vehicles\n";
+        cout << "East: " << eastCount << " vehicles\n";
+        cout << "West: " << westCount << " vehicles\n";
+
+        // --------------------------------------------------------
+        // STEP 2: CALCULATE GREEN SIGNAL TIME
+        // --------------------------------------------------------
+        // The analyzer calculates green time based on the
+        // maximum queue size in each direction.
+        //
+        // This makes the signal timing responsive to traffic
+        // conditions rather than using the same duration
+        // for every direction.
+        // --------------------------------------------------------
+
+        int nsGreen =
+            analyzer.calculateGreenTime(northSouthMax);
+
+        int ewGreen =
+            analyzer.calculateGreenTime(eastWestMax);
+
+        cout << "\nDynamic Green Time Allocation:\n";
+
+        cout << "North-South Green: "
+             << nsGreen << " seconds\n";
+
+        cout << "East-West Green: "
+             << ewGreen << " seconds\n";
+
+        // --------------------------------------------------------
+        // STEP 3: SELECT THE FIRST PHASE
+        // --------------------------------------------------------
+        // The analyzer compares the traffic load of both
+        // directions and selects which phase should run first.
+        //
+        // This helps give priority to the direction that
+        // currently has greater traffic demand.
+        // --------------------------------------------------------
+
+        TrafficPhase first =
+            analyzer.choosePhase(
+                northSouthCount(),
+                eastWestCount()
+            );
+
+        // The second phase is always the opposite direction.
+        //
+        // If North-South runs first, East-West runs second.
+        // Otherwise, East-West runs first and North-South
+        // runs second.
+        TrafficPhase second =
+            (first == NORTH_SOUTH_PHASE)
+                ? EAST_WEST_PHASE
+                : NORTH_SOUTH_PHASE;
+
+        cout << "\nSelected Phase Order:\n";
+
+        cout << "First Phase: "
+             << (first == NORTH_SOUTH_PHASE
+                     ? "NORTH-SOUTH"
+                     : "EAST-WEST")
              << '\n';
-        cout << "North-South green time: " << nsGreen << " seconds\n";
-        cout << "East-West green time: " << ewGreen << " seconds\n";
 
-        runPhase(first, first == NORTH_SOUTH_PHASE ? nsGreen : ewGreen);
-        runPhase(second, second == NORTH_SOUTH_PHASE ? nsGreen : ewGreen);
+        cout << "Second Phase: "
+             << (second == NORTH_SOUTH_PHASE
+                     ? "NORTH-SOUTH"
+                     : "EAST-WEST")
+             << '\n';
+
+        // --------------------------------------------------------
+        // STEP 4: EXECUTE THE FIRST PHASE
+        // --------------------------------------------------------
+        // Pass the green duration corresponding to the selected
+        // direction to the runPhase() function.
+        // --------------------------------------------------------
+
+        cout << "\nStarting First Phase...\n";
+
+        runPhase(
+            first,
+            first == NORTH_SOUTH_PHASE ? nsGreen : ewGreen
+        );
+
+        // --------------------------------------------------------
+        // STEP 5: EXECUTE THE SECOND PHASE
+        // --------------------------------------------------------
+        // Once the first phase is completed, the opposite
+        // direction gets its turn.
+        //
+        // This ensures that both directions are considered
+        // during every complete signal cycle.
+        // --------------------------------------------------------
+
+        cout << "\nStarting Second Phase...\n";
+
+        runPhase(
+            second,
+            second == NORTH_SOUTH_PHASE ? nsGreen : ewGreen
+        );
+
+        // --------------------------------------------------------
+        // STEP 6: CYCLE COMPLETION REPORT
+        // --------------------------------------------------------
+
+        cout << "\n********************************************\n";
+        cout << "       TRAFFIC SIGNAL CYCLE COMPLETED\n";
+        cout << "********************************************\n";
+
+        cout << "Current Simulation Time: "
+             << simulationClock << " seconds\n";
+
+        cout << "Vehicles Currently Waiting:\n";
+
+        cout << "North: " << north.getCount() << '\n';
+        cout << "South: " << south.getCount() << '\n';
+        cout << "East: " << east.getCount() << '\n';
+        cout << "West: " << west.getCount() << '\n';
+
+        cout << "********************************************\n";
     }
 
     // ---------- REPORTS ----------
