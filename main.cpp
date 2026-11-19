@@ -2530,85 +2530,164 @@ public:
 
 // Module 6:: Fixed-Timer vs Adaptive Comparison
 
+
 struct StrategyResult
 {
+    // Name of the traffic management strategy.
     char name[20];
+
+    // Total vehicles successfully served.
     int served;
+
+    // Combined waiting time of all vehicles.
     int totalWait;
+
+    // Maximum waiting time experienced by a vehicle.
     int maxWait;
+
+    // Total emergency vehicles successfully served.
     int emergencyServed;
+
+    // Combined waiting time of emergency vehicles.
     int emergencyWait;
-    int kindServed[3]; // 0 = ambulance, 1 = fire truck, 2 = police car
+
+    // Category-wise emergency vehicle count.
+    // 0 = Ambulance, 1 = Fire Truck, 2 = Police Car.
+    int kindServed[3];
+
+    // Category-wise emergency vehicle waiting time.
     int kindWait[3];
+
+    // Total signal phases used.
     int phasesUsed;
+
+    // Total green signal time allocated.
     int greenGiven;
+
+    // Total unused green signal time.
     int greenWasted;
 };
 
-// Replays the SAME detected traffic under two strategies and compares them.
-// Every detected vehicle is waiting at time 0, so wait time = departure time.
+
+// Compares two traffic management strategies using identical traffic data.
+// Every vehicle is assumed to arrive at time zero.
+// Therefore, waiting time is equal to the departure time.
 class StrategyComparison : public Reportable
 {
 private:
-    int total[4]; // 0..3 = North, South, East, West
+
+    // Total vehicles detected in North, South, East and West directions.
+    int total[4];
+
+    // Number of emergency vehicles detected in each direction.
     int emergencyCount[4];
-    VehicleType emergencyKind[4][LANE_CAPACITY + 1]; // [lane][position 1..count], UNKNOWN = ordinary
-    int count[4];                                    // ordinary vehicles still waiting in the normal lane
-    int emWaiting[4];                                // emergency vehicles still waiting in the green corridor lane
-    int emScan[4];                                   // next position to look at in emergencyKind[lane][]
-    int nextPos[4];                                  // next position in the normal queue (fixed road without a lane)
-    bool flagsActive;                                // emergency vehicles wait inside the normal queue
-    bool fixedHasLane;                               // does the fixed road ALSO have a green corridor lane?
+
+    // Stores emergency vehicle types in their original queue positions.
+    // UNKNOWN represents an ordinary vehicle.
+    VehicleType emergencyKind[4][LANE_CAPACITY + 1];
+
+    // Number of ordinary vehicles currently waiting in each lane.
+    int count[4];
+
+    // Number of emergency vehicles waiting in separate corridor lanes.
+    int emWaiting[4];
+
+    // Tracks the next emergency vehicle position to examine.
+    int emScan[4];
+
+    // Tracks the next vehicle position in the normal queue.
+    int nextPos[4];
+
+    // TRUE when emergency vehicles are inside the normal queue.
+    // FALSE when emergency vehicles use a separate corridor.
+    bool flagsActive;
+
+    // Indicates whether the fixed road has a green corridor.
+    bool fixedHasLane;
+
+    // Stores the fixed green signal duration.
     int fixedGreen;
+
+    // Indicates whether traffic data has been loaded.
     bool ready;
+
+    // Stores the final results of both strategies.
     StrategyResult fixedResult;
     StrategyResult adaptiveResult;
 
+
+    // Initializes all statistics before starting a simulation.
     void resetResult(StrategyResult &r, const char *name)
     {
+        // Store strategy name safely.
         strncpy(r.name, name, sizeof(r.name) - 1);
         r.name[sizeof(r.name) - 1] = '\0';
+
+        // Reset general traffic statistics.
         r.served = 0;
         r.totalWait = 0;
         r.maxWait = 0;
+
+        // Reset emergency statistics.
         r.emergencyServed = 0;
         r.emergencyWait = 0;
 
+        // Reset category-wise statistics.
         for (int k = 0; k < 3; k++)
         {
             r.kindServed[k] = 0;
             r.kindWait[k] = 0;
         }
 
+        // Reset signal timing statistics.
         r.phasesUsed = 0;
         r.greenGiven = 0;
         r.greenWasted = 0;
     }
 
-    // mode 0 : adaptive road - the priority heap dispatches the emergency vehicles through the
-    //          green corridor lane, only ordinary vehicles queue
-    // mode 1 : fixed road WITH a green corridor lane - emergency vehicles wait in it for their
-    //          direction's green (no signal priority)
-    // mode 2 : fixed road, normal road only - an emergency vehicle waits inside the normal queue
+
+    // Configures lanes according to the selected strategy.
+    //
+    // Mode 0: Adaptive road with priority-based emergency dispatch.
+    // Mode 1: Fixed road with a separate emergency corridor.
+    // Mode 2: Fixed road where emergency vehicles remain in normal queues.
     void loadLanes(int mode)
     {
+        // Activate emergency identification for mode 2.
         flagsActive = (mode == 2);
 
         for (int lane = 0; lane < 4; lane++)
         {
+            // Start processing from the first vehicle.
             nextPos[lane] = 1;
             emScan[lane] = 1;
-            count[lane] = (mode == 2) ? total[lane] : total[lane] - emergencyCount[lane];
-            emWaiting[lane] = (mode == 1) ? emergencyCount[lane] : 0;
+
+            // Separate emergency vehicles from ordinary traffic
+            // unless all vehicles share the same queue.
+            count[lane] = (mode == 2)
+                ? total[lane]
+                : total[lane] - emergencyCount[lane];
+
+            // Load emergency corridor vehicles for mode 1.
+            emWaiting[lane] = (mode == 1)
+                ? emergencyCount[lane]
+                : 0;
         }
     }
 
+
+    // Calculates the total number of vehicles still waiting.
     int remaining() const
     {
         return count[0] + count[1] + count[2] + count[3] +
-               emWaiting[0] + emWaiting[1] + emWaiting[2] + emWaiting[3];
+               emWaiting[0] + emWaiting[1] +
+               emWaiting[2] + emWaiting[3];
     }
 
+
+    // Checks whether a particular signal phase has waiting vehicles.
+    // North-South phase checks lanes 0 and 1.
+    // East-West phase checks lanes 2 and 3.
     bool directionEmpty(TrafficPhase phase) const
     {
         if (phase == NORTH_SOUTH_PHASE)
@@ -2619,65 +2698,263 @@ private:
         return count[2] == 0 && count[3] == 0;
     }
 
-    // kind = UNKNOWN for an ordinary vehicle, otherwise the emergency vehicle type
+
+    // Records the performance statistics whenever a vehicle is served.
+    //
+    // Updates total waiting time, maximum waiting time and
+    // category-wise emergency vehicle statistics.
     void record(StrategyResult &r, int wait, VehicleType kind)
     {
+        // Update total vehicle statistics.
         r.served++;
         r.totalWait += wait;
 
+        // Update maximum waiting time.
         if (wait > r.maxWait)
         {
             r.maxWait = wait;
         }
 
+        // Process additional statistics for emergency vehicles.
         if (Vehicle::isEmergencyType(kind))
         {
+            // Determine the emergency vehicle category.
             int slot = kind - AMBULANCE;
+
             r.emergencyServed++;
             r.emergencyWait += wait;
+
+            // Update category-wise vehicle count and waiting time.
             r.kindServed[slot]++;
             r.kindWait[slot] += wait;
         }
     }
 
-    // Same rule as EmergencyManager: higher priority first, then smaller vehicle ID.
-    // Vehicle IDs run 1..N across the lanes (North, South, East, West).
-    bool dispatchesBefore(int laneA, int posA, int laneB, int posB, const int startId[4]) const
-    {
-        int priorityA = Vehicle::defaultPriority(emergencyKind[laneA][posA]);
-        int priorityB = Vehicle::defaultPriority(emergencyKind[laneB][posB]);
 
+    // Determines which emergency vehicle should be dispatched first.
+    //
+    // Higher priority vehicles are selected first.
+    // If priorities are equal, the vehicle with the smaller ID wins.
+    bool dispatchesBefore(
+        int laneA,
+        int posA,
+        int laneB,
+        int posB,
+        const int startId[4]
+    ) const
+    {
+        // Get default emergency priorities.
+        int priorityA =
+            Vehicle::defaultPriority(emergencyKind[laneA][posA]);
+
+        int priorityB =
+            Vehicle::defaultPriority(emergencyKind[laneB][posB]);
+
+        // Compare emergency priorities.
         if (priorityA != priorityB)
         {
             return priorityA > priorityB;
         }
 
-        return startId[laneA] + posA < startId[laneB] + posB;
+        // Use vehicle ID as the secondary comparison condition.
+        return startId[laneA] + posA <
+               startId[laneB] + posB;
     }
 
-    // Normal lane: releases one vehicle every SECONDS_PER_VEHICLE seconds.
-    int serveLane(int lane, int slots, int clock, StrategyResult &r)
+
+    // Serves vehicles from a normal traffic lane.
+    //
+    // One vehicle is released every SECONDS_PER_VEHICLE seconds.
+    // The function returns the actual number of vehicles served.
+    int serveLane(
+        int lane,
+        int slots,
+        int clock,
+        StrategyResult &r
+    )
     {
         int served = 0;
 
+        // Continue until available slots are exhausted
+        // or no vehicles remain in the selected lane.
         while (served < slots && count[lane] > 0)
         {
             served++;
 
+            // Assume the current vehicle is an ordinary vehicle.
             VehicleType kind = UNKNOWN;
 
+            // Identify the actual vehicle type if emergency vehicles
+            // are present inside the normal traffic queue.
             if (flagsActive)
             {
                 kind = emergencyKind[lane][nextPos[lane]];
             }
 
-            record(r, clock + served * SECONDS_PER_VEHICLE, kind);
+            // Calculate departure time and record waiting time.
+            // All vehicles arrive at time zero.
+            record(
+                r,
+                clock + served * SECONDS_PER_VEHICLE,
+                kind
+            );
+
+            // Move to the next vehicle in the queue.
             nextPos[lane]++;
+
+            // Reduce the remaining vehicle count.
             count[lane]--;
         }
 
         return served;
     }
+
+
+    // Calculates the average waiting time of all served vehicles.
+    // Lower average waiting time indicates better traffic flow.
+    double calculateAverageWait(const StrategyResult &r) const
+    {
+        if (r.served == 0)
+        {
+            return 0.0;
+        }
+
+        return (double)r.totalWait / r.served;
+    }
+
+
+    // Calculates the average waiting time of emergency vehicles.
+    double calculateEmergencyAverageWait(
+        const StrategyResult &r
+    ) const
+    {
+        if (r.emergencyServed == 0)
+        {
+            return 0.0;
+        }
+
+        return (double)r.emergencyWait / r.emergencyServed;
+    }
+
+
+    // Calculates the percentage of allocated green time that was wasted.
+    double calculateGreenWaste(const StrategyResult &r) const
+    {
+        if (r.greenGiven == 0)
+        {
+            return 0.0;
+        }
+
+        return ((double)r.greenWasted / r.greenGiven) * 100.0;
+    }
+
+
+    // Identifies the strategy with the lower average waiting time.
+    const char *getFasterStrategy() const
+    {
+        double fixedAverage = calculateAverageWait(fixedResult);
+        double adaptiveAverage = calculateAverageWait(adaptiveResult);
+
+        // Handle the case where neither strategy served vehicles.
+        if (fixedResult.served == 0 && adaptiveResult.served == 0)
+        {
+            return "No vehicles processed";
+        }
+
+        if (fixedResult.served == 0)
+        {
+            return "Adaptive Strategy";
+        }
+
+        if (adaptiveResult.served == 0)
+        {
+            return "Fixed Strategy";
+        }
+
+        // Compare average waiting times.
+        if (fixedAverage < adaptiveAverage)
+        {
+            return "Fixed Strategy";
+        }
+        else if (adaptiveAverage < fixedAverage)
+        {
+            return "Adaptive Strategy";
+        }
+
+        return "Both strategies perform equally";
+    }
+
+
+    // Displays a detailed comparison of both traffic strategies.
+    // This report helps evaluate the effectiveness of traffic management.
+    void printStrategyComparison() const
+    {
+        cout << "\n============================================\n";
+        cout << "       TRAFFIC STRATEGY COMPARISON\n";
+        cout << "============================================\n";
+
+        // Display fixed-time strategy statistics.
+        cout << "\nFIXED-TIME STRATEGY\n";
+
+        cout << "Vehicles Served: "
+             << fixedResult.served << endl;
+
+        cout << "Total Waiting Time: "
+             << fixedResult.totalWait << endl;
+
+        cout << "Maximum Waiting Time: "
+             << fixedResult.maxWait << endl;
+
+        cout << "Average Waiting Time: "
+             << calculateAverageWait(fixedResult) << endl;
+
+        cout << "Emergency Vehicles Served: "
+             << fixedResult.emergencyServed << endl;
+
+        cout << "Emergency Average Wait: "
+             << calculateEmergencyAverageWait(fixedResult) << endl;
+
+        cout << "Green Time Wasted: "
+             << calculateGreenWaste(fixedResult) << "%" << endl;
+
+
+        // Display adaptive strategy statistics.
+        cout << "\nADAPTIVE STRATEGY\n";
+
+        cout << "Vehicles Served: "
+             << adaptiveResult.served << endl;
+
+        cout << "Total Waiting Time: "
+             << adaptiveResult.totalWait << endl;
+
+        cout << "Maximum Waiting Time: "
+             << adaptiveResult.maxWait << endl;
+
+        cout << "Average Waiting Time: "
+             << calculateAverageWait(adaptiveResult) << endl;
+
+        cout << "Emergency Vehicles Served: "
+             << adaptiveResult.emergencyServed << endl;
+
+        cout << "Emergency Average Wait: "
+             << calculateEmergencyAverageWait(adaptiveResult) << endl;
+
+        cout << "Green Time Wasted: "
+             << calculateGreenWaste(adaptiveResult) << "%" << endl;
+
+
+        // Display the final performance analysis.
+        cout << "\n============================================\n";
+        cout << "          PERFORMANCE ANALYSIS\n";
+        cout << "============================================\n";
+
+        cout << "Better Average Waiting Time: "
+             << getFasterStrategy() << endl;
+
+        cout << "============================================\n";
+    }
+};
+
 
     // Green corridor lane (fixed timer): its own queue, released during the lane's direction
     // green at the same pace, side by side with the normal lane. No signal priority.
